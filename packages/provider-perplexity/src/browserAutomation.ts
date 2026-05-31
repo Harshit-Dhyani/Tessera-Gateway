@@ -113,6 +113,16 @@ export function createPerplexityPromptScript(prompt: string, timeoutMs = 120000)
     return textOf(composer);
   };
 
+  const setNativeValue = (element, value) => {
+    const prototype = Object.getPrototypeOf(element);
+    const descriptor = Object.getOwnPropertyDescriptor(prototype, 'value');
+    if (descriptor?.set) {
+      descriptor.set.call(element, value);
+    } else {
+      element.value = value;
+    }
+  };
+
   const responseMessages = () => {
     const selectors = [
       '[data-testid*="answer"]',
@@ -147,20 +157,26 @@ export function createPerplexityPromptScript(prompt: string, timeoutMs = 120000)
     composer.click();
     composer.focus();
     if ('value' in composer) {
-      composer.value = prompt;
-      composer.dispatchEvent(new InputEvent('beforeinput', { inputType: 'insertText', data: prompt, bubbles: true }));
+      setNativeValue(composer, '');
+      composer.dispatchEvent(new InputEvent('input', { inputType: 'deleteContentBackward', bubbles: true }));
+      setNativeValue(composer, prompt);
       composer.dispatchEvent(new InputEvent('input', { inputType: 'insertText', data: prompt, bubbles: true }));
       composer.dispatchEvent(new Event('change', { bubbles: true }));
       return;
     }
 
-    composer.textContent = '';
     const selection = window.getSelection();
     const range = document.createRange();
     range.selectNodeContents(composer);
-    range.collapse(false);
     selection.removeAllRanges();
     selection.addRange(range);
+    document.execCommand('delete', false);
+    composer.dispatchEvent(new InputEvent('input', { inputType: 'deleteContentBackward', bubbles: true }));
+    const insertRange = document.createRange();
+    insertRange.selectNodeContents(composer);
+    insertRange.collapse(false);
+    selection.removeAllRanges();
+    selection.addRange(insertRange);
     composer.dispatchEvent(new InputEvent('beforeinput', { inputType: 'insertText', data: prompt, bubbles: true }));
     document.execCommand('insertText', false, prompt);
     composer.dispatchEvent(new InputEvent('input', { inputType: 'insertText', data: prompt, bubbles: true }));
@@ -208,6 +224,17 @@ export function createPerplexityPromptScript(prompt: string, timeoutMs = 120000)
     const beforeMessages = responseMessages();
     const beforeLast = beforeMessages.at(-1) || '';
     setComposerText(composer);
+
+    await sleep(150);
+    if (!composerText(composer).includes(prompt)) {
+      return result({
+        ok: false,
+        text: '',
+        errorCode: ${escapeScriptValue(ErrorCodes.PROVIDER_NOT_READY)},
+        errorMessage: 'Perplexity composer did not keep the prompt after input synchronization.',
+        captureMethod: 'composer_input_sync',
+      });
+    }
 
     let sendButton = findSendButton();
     while (!sendButton && Date.now() - startedAt < 10000) {
