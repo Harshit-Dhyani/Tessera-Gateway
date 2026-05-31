@@ -1,0 +1,24 @@
+{
+  "name": "@tessera-gateway/gateway",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "./src/index.ts",
+  "scripts": {
+    "dev": "bun run --watch src/index.ts",
+    "start": "bun run src/index.ts",
+    "typecheck": "tsc --noEmit",
+    "build": "echo 'No build step for gateway'"
+  },
+  "dependencies": {
+    "@tessera-gateway/core": "workspace:*",
+    "@tessera-gateway/runtime": "workspace:*",
+    "@tessera-gateway/observability": "workspace:*",
+    "fastify": "^4.26.0",
+    "@fastify/cors": "^9.0.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.5.0",
+    "bun-types": "^1.1.0"
+  }
+}
