@@ -1,2 +1,2 @@
-export { ClaudeAdapter, adapter } from './adapter.js';
-export { createClaudePromptScript, type ClaudeBrowserAutomationResult } from './browserAutomation.js';
+export { adapter, ClaudeAdapter } from './adapter.js';
+export { type ClaudeBrowserAutomationResult, createClaudePromptScript } from './browserAutomation.js';

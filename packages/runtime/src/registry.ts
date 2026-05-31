@@ -7,8 +7,7 @@ import type {
   ProviderSummary,
 } from '@tessera-gateway/core/providers/types';
 
-export { providerRegistry } from '@tessera-gateway/core/providers/registry';
-export { resolveProviderId as coreResolveProviderId } from '@tessera-gateway/core/providers/registry';
+export { providerRegistry, resolveProviderId as coreResolveProviderId } from '@tessera-gateway/core/providers/registry';
 
 export function getProviderRegistry() {
   return providerRegistry;

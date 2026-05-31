@@ -1,6 +1,6 @@
 import { isIP } from 'net';
 
-const pathTraversalRegex = /(\.\.[\/\\])+|(\.\.[\/\\])+$/;
+const pathTraversalRegex = /(\.\.[/\\])+|(\.\.[/\\])+$/;
 const dangerousProtocols = new Set(['javascript:', 'data:', 'vbscript:']);
 const loopbackHosts = new Set(['localhost', '127.0.0.1', '::1']);
 

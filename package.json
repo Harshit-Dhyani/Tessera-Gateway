@@ -3,7 +3,10 @@
   "version": "0.1.0",
   "private": true,
   "description": "Tessera Gateway - V1",
-  "workspaces": ["apps/*", "packages/*"],
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
   "scripts": {
     "dev": "bun run scripts/dev.ts",
     "dev:desktop": "bun run --filter @tessera-gateway/desktop dev",
