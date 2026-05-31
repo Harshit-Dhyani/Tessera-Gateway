@@ -1,0 +1,19 @@
+{
+  "files": [],
+  "references": [
+    { "path": "./apps/desktop" },
+    { "path": "./apps/gateway" },
+    { "path": "./apps/mcp" },
+    { "path": "./packages/core" },
+    { "path": "./packages/router" },
+    { "path": "./packages/session" },
+    { "path": "./packages/storage" },
+    { "path": "./packages/observability" },
+    { "path": "./packages/security" },
+    { "path": "./packages/provider-base" },
+    { "path": "./packages/provider-chatgpt" },
+    { "path": "./packages/provider-claude" },
+    { "path": "./packages/provider-gemini" },
+    { "path": "./packages/provider-perplexity" }
+  ]
+}

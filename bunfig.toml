@@ -1,0 +1,12 @@
+# Bun configuration
+
+[install]
+# Use exact versions
+# exact = true
+
+# Auto install missing dependencies
+# auto-install = true
+
+[test]
+# Test reporter
+reporter = "verbose"
