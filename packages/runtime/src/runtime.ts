@@ -27,16 +27,22 @@ import type {
 const RUNTIME_PORT = 7870;
 const RUNTIME_URL = `http://127.0.0.1:${RUNTIME_PORT}`;
 const RUNTIME_FETCH_TIMEOUT_MS = 5000;
+const RUNTIME_SEND_PROMPT_TIMEOUT_MS = 150000;
+const BROWSER_AUTOMATION_WITH_PAGE_LEVEL_AUTH_CHECK = new Set(['chatgpt', 'gemini', 'perplexity']);
 
 interface RuntimeHttpClient {
   get<T>(path: string): Promise<T>;
-  post<T>(path: string, body?: unknown): Promise<T>;
+  post<T>(path: string, body?: unknown, timeoutMs?: number): Promise<T>;
 }
 
 function createHttpClient(): RuntimeHttpClient {
-  async function fetchWithTimeout(path: string, init?: RequestInit): Promise<Response> {
+  async function fetchWithTimeout(
+    path: string,
+    init?: RequestInit,
+    timeoutMs = RUNTIME_FETCH_TIMEOUT_MS,
+  ): Promise<Response> {
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), RUNTIME_FETCH_TIMEOUT_MS);
+    const timeout = setTimeout(() => controller.abort(), timeoutMs);
 
     try {
       return await fetch(`${RUNTIME_URL}${path}`, {
@@ -56,12 +62,16 @@ function createHttpClient(): RuntimeHttpClient {
       }
       return response.json() as Promise<T>;
     },
-    async post<T>(path: string, body?: unknown): Promise<T> {
-      const response = await fetchWithTimeout(path, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: body ? JSON.stringify(body) : undefined,
-      });
+    async post<T>(path: string, body?: unknown, timeoutMs?: number): Promise<T> {
+      const response = await fetchWithTimeout(
+        path,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: body ? JSON.stringify(body) : undefined,
+        },
+        timeoutMs,
+      );
       if (!response.ok) {
         throw new Error(`HTTP ${response.status}: ${response.statusText}`);
       }
@@ -359,16 +369,20 @@ export async function sendPrompt(
     );
   }
 
-  if (!state.isLoggedIn) {
+  if (!state.isLoggedIn && !BROWSER_AUTOMATION_WITH_PAGE_LEVEL_AUTH_CHECK.has(resolvedId)) {
     return createErrorResponse(resolvedId, ErrorCodes.PROVIDER_NOT_AUTHENTICATED, 'Provider session not authenticated');
   }
 
   try {
-    const result = await getClient().post<NormalizedResponse>('/runtime/providers/sendPrompt', {
-      providerId: resolvedId,
-      prompt,
-      systemPrompt,
-    });
+    const result = await getClient().post<NormalizedResponse>(
+      '/runtime/providers/sendPrompt',
+      {
+        providerId: resolvedId,
+        prompt,
+        systemPrompt,
+      },
+      RUNTIME_SEND_PROMPT_TIMEOUT_MS,
+    );
 
     return result.ok
       ? normalizeSuccessResponse(

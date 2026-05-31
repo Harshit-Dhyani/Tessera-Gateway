@@ -688,10 +688,12 @@ This phase starts real, visible-browser provider automation while preserving the
 **Phase Exit Criteria:**
 
 - ChatGPT can complete one prompt-response loop through MCP and local API after manual login
-- implemented provider selectors live in `packages/provider-chatgpt`
+- implemented provider selectors live in provider-owned packages such as `packages/provider-chatgpt`, `packages/provider-gemini`, and `packages/provider-perplexity`
 - unsupported providers still return honest not-implemented responses
 - provider breakage returns `PROVIDER_UI_CHANGED`, `PROVIDER_NOT_READY`, or `PROVIDER_TIMEOUT` with logs
 - MCP and local API return equivalent normalized responses for the implemented provider
+
+Provider priority note: use Gemini and Perplexity first for no-login smoke paths when the live pages allow it. Their execution scripts must remain in `packages/provider-gemini` and `packages/provider-perplexity`; desktop main may dispatch those scripts but must not own their selectors or capture rules.
 
 ## 34. Canonical Owners Map
 

@@ -113,6 +113,105 @@ describe('runtime contracts', () => {
     expect(response.error?.code).toBe('PROVIDER_NOT_READY');
   });
 
+  it('lets browser-automation providers defer auth decisions to provider page scripts', async () => {
+    const fetchMock = vi.fn(async (input: string) => {
+      if (input.endsWith('/health')) {
+        return jsonResponse({ status: 'ok' });
+      }
+
+      if (input.endsWith('/runtime/providers/state')) {
+        return jsonResponse([
+          {
+            providerId: 'perplexity',
+            allowedDomain: 'https://www.perplexity.ai',
+            currentUrl: 'https://www.perplexity.ai',
+            title: 'Perplexity',
+            isOpen: true,
+            isCreated: true,
+            isMounted: true,
+            isVisible: true,
+            participatesInLayout: true,
+            isActive: true,
+            isFocused: true,
+            loadState: 'ready',
+            canGoBack: false,
+            canGoForward: false,
+            isLoggedIn: false,
+            isExecuting: false,
+          },
+        ]);
+      }
+
+      if (input.endsWith('/runtime/providers/sendPrompt')) {
+        return jsonResponse({
+          ok: true,
+          providerId: 'perplexity',
+          model: 'perplexity',
+          text: 'no-login page result',
+          latencyMs: 7211,
+          loadState: 'ready',
+          error: null,
+          providerName: 'Perplexity',
+        });
+      }
+
+      return jsonResponse({}, 404);
+    });
+
+    vi.stubGlobal('fetch', fetchMock);
+
+    const response = await sendPrompt('perplexity', 'Hello');
+
+    expect(response.ok).toBe(true);
+    expect(response.providerId).toBe('perplexity');
+    expect(response.text).toBe('no-login page result');
+    expect(fetchMock).toHaveBeenCalledWith(
+      'http://127.0.0.1:7870/runtime/providers/sendPrompt',
+      expect.objectContaining({ method: 'POST' }),
+    );
+  });
+
+  it('keeps non-implemented providers behind the runtime auth gate', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: string) => {
+        if (input.endsWith('/health')) {
+          return jsonResponse({ status: 'ok' });
+        }
+
+        if (input.endsWith('/runtime/providers/state')) {
+          return jsonResponse([
+            {
+              providerId: 'claude',
+              allowedDomain: 'https://claude.ai',
+              currentUrl: 'https://claude.ai',
+              title: 'Claude',
+              isOpen: true,
+              isCreated: true,
+              isMounted: true,
+              isVisible: true,
+              participatesInLayout: true,
+              isActive: true,
+              isFocused: true,
+              loadState: 'ready',
+              canGoBack: false,
+              canGoForward: false,
+              isLoggedIn: false,
+              isExecuting: false,
+            },
+          ]);
+        }
+
+        return jsonResponse({}, 404);
+      }),
+    );
+
+    const response = await sendPrompt('claude', 'Hello');
+
+    expect(response.ok).toBe(false);
+    expect(response.error?.code).toBe('PROVIDER_NOT_AUTHENTICATED');
+  });
+
   it('reports the runtime state with truthful defaults when the bridge is down', async () => {
     vi.stubGlobal(
       'fetch',

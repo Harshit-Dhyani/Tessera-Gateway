@@ -30,7 +30,7 @@ function send(method, params = {}) {
     setTimeout(() => {
       rl.removeListener('line', handler);
       reject(new Error('Timeout'));
-    }, 15000);
+    }, 150000);
   });
 }
 
@@ -38,9 +38,11 @@ async function test() {
   console.log('Testing send_prompt via MCP...\n');
 
   try {
-    // 1. Open ChatGPT
-    console.log('1. Opening chatgpt...');
-    const openRes = await send('tools/call', { name: 'open_provider', arguments: { providerId: 'chatgpt' } });
+    const providerId = process.argv[2] || 'perplexity';
+
+    // 1. Open provider
+    console.log(`1. Opening ${providerId}...`);
+    const openRes = await send('tools/call', { name: 'open_provider', arguments: { providerId } });
     const openJson = JSON.parse(openRes.result.content[0].text);
     console.log('   success:', openJson.success);
     console.log('   isMounted:', openJson.state?.isMounted);
@@ -51,8 +53,8 @@ async function test() {
     await new Promise((r) => setTimeout(r, 5000));
 
     // 2. Check state
-    console.log('2. Checking chatgpt state...');
-    const stateRes = await send('tools/call', { name: 'get_provider_state', arguments: { providerId: 'chatgpt' } });
+    console.log(`2. Checking ${providerId} state...`);
+    const stateRes = await send('tools/call', { name: 'get_provider_state', arguments: { providerId } });
     const stateJson = JSON.parse(stateRes.result.content[0].text);
     console.log('   isMounted:', stateJson.state?.isMounted);
     console.log('   loadState:', stateJson.state?.loadState);
@@ -61,10 +63,10 @@ async function test() {
 
     // 3. Send prompt if ready
     if (stateJson.state?.isMounted && stateJson.state?.loadState === 'ready') {
-      console.log('3. Sending prompt to chatgpt...');
+      console.log(`3. Sending prompt to ${providerId}...`);
       const promptRes = await send('tools/call', {
         name: 'send_prompt',
-        arguments: { providerId: 'chatgpt', prompt: 'Say hi in one short sentence.' },
+        arguments: { providerId, prompt: 'Say hi in one short sentence.' },
       });
       const promptJson = JSON.parse(promptRes.result.content[0].text);
       console.log('   ok:', promptJson.ok);

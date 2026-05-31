@@ -3,6 +3,14 @@ import {
   type ChatGptBrowserAutomationResult,
   createChatGptPromptScript,
 } from '@tessera-gateway/provider-chatgpt/browserAutomation';
+import {
+  type GeminiBrowserAutomationResult,
+  createGeminiPromptScript,
+} from '@tessera-gateway/provider-gemini/browserAutomation';
+import {
+  type PerplexityBrowserAutomationResult,
+  createPerplexityPromptScript,
+} from '@tessera-gateway/provider-perplexity/browserAutomation';
 import { BrowserView, type BrowserWindow, type Session, session, shell } from 'electron';
 import type { LayoutMode, ProviderLayoutManager } from './providerLayout.js';
 import { getProviderIdFromUrl, getUrlForProvider, isApprovedUrl } from './providerSessions.js';
@@ -16,6 +24,12 @@ import {
 import type { WorkspaceBounds } from './providerWorkspaceBounds.js';
 
 const DEBUG = process.env.NODE_ENV === 'development';
+const BROWSER_AUTOMATION_PROVIDERS = new Set(['chatgpt', 'gemini', 'perplexity']);
+
+type ProviderBrowserAutomationResult =
+  | ChatGptBrowserAutomationResult
+  | GeminiBrowserAutomationResult
+  | PerplexityBrowserAutomationResult;
 
 export class ProviderViewManager {
   private views: Map<string, BrowserView> = new Map();
@@ -707,7 +721,7 @@ export class ProviderViewManager {
       };
     }
 
-    if (!state.isLoggedIn && providerId !== 'chatgpt') {
+    if (!state.isLoggedIn && !BROWSER_AUTOMATION_PROVIDERS.has(providerId)) {
       return {
         ok: false,
         providerId,
@@ -727,7 +741,8 @@ export class ProviderViewManager {
       this.stateStore.startExecution(providerId);
       const startedAt = Date.now();
 
-      if (providerId !== 'chatgpt') {
+      const promptScript = this.createPromptScript(providerId, prompt);
+      if (!promptScript) {
         const latencyMs = Date.now() - startedAt;
         this.stateStore.finishExecution(providerId, ErrorCodes.PROVIDER_NOT_IMPLEMENTED, latencyMs);
 
@@ -740,18 +755,18 @@ export class ProviderViewManager {
           loadState: 'failed',
           error: {
             code: ErrorCodes.PROVIDER_NOT_IMPLEMENTED,
-            message: 'Provider automation is implemented for ChatGPT first. This provider is not implemented yet.',
+            message: 'Provider browser automation is not implemented yet.',
             retryable: false,
           },
         };
       }
 
-      if (DEBUG) console.log(`[ProviderViewManager] sendPrompt executing ChatGPT browser automation`);
+      if (DEBUG) console.log(`[ProviderViewManager] sendPrompt executing ${providerId} browser automation`);
 
       const automationResult = (await webContents.executeJavaScript(
-        createChatGptPromptScript(prompt),
+        promptScript,
         true,
-      )) as ChatGptBrowserAutomationResult;
+      )) as ProviderBrowserAutomationResult;
 
       const latencyMs = Date.now() - startedAt;
 
@@ -768,7 +783,7 @@ export class ProviderViewManager {
           loadState: 'failed',
           error: {
             code: errorCode,
-            message: automationResult.errorMessage ?? 'ChatGPT browser automation failed.',
+            message: automationResult.errorMessage ?? `${providerId} browser automation failed.`,
             retryable: errorCode === ErrorCodes.PROVIDER_NOT_READY || errorCode === ErrorCodes.PROVIDER_TIMEOUT,
           },
         };
@@ -801,6 +816,19 @@ export class ProviderViewManager {
           retryable: true,
         },
       };
+    }
+  }
+
+  private createPromptScript(providerId: string, prompt: string): string | null {
+    switch (providerId) {
+      case 'chatgpt':
+        return createChatGptPromptScript(prompt);
+      case 'gemini':
+        return createGeminiPromptScript(prompt);
+      case 'perplexity':
+        return createPerplexityPromptScript(prompt);
+      default:
+        return null;
     }
   }
 

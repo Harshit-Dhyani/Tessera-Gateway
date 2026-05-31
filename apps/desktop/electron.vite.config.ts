@@ -8,6 +8,8 @@ const __dirname = dirname(__filename);
 const repoRoot = resolve(__dirname, '../..');
 const coreDist = resolve(repoRoot, 'packages/core/dist');
 const providerChatGptSrc = resolve(repoRoot, 'packages/provider-chatgpt/src');
+const providerGeminiSrc = resolve(repoRoot, 'packages/provider-gemini/src');
+const providerPerplexitySrc = resolve(repoRoot, 'packages/provider-perplexity/src');
 
 const coreAliases = [
   {
@@ -30,6 +32,22 @@ const coreAliases = [
     find: /^@tessera-gateway\/provider-chatgpt\/browserAutomation$/,
     replacement: resolve(providerChatGptSrc, 'browserAutomation.ts'),
   },
+  {
+    find: /^@tessera-gateway\/provider-gemini$/,
+    replacement: resolve(providerGeminiSrc, 'index.ts'),
+  },
+  {
+    find: /^@tessera-gateway\/provider-gemini\/browserAutomation$/,
+    replacement: resolve(providerGeminiSrc, 'browserAutomation.ts'),
+  },
+  {
+    find: /^@tessera-gateway\/provider-perplexity$/,
+    replacement: resolve(providerPerplexitySrc, 'index.ts'),
+  },
+  {
+    find: /^@tessera-gateway\/provider-perplexity\/browserAutomation$/,
+    replacement: resolve(providerPerplexitySrc, 'browserAutomation.ts'),
+  },
 ] as const;
 
 export default defineConfig({
@@ -45,6 +63,8 @@ export default defineConfig({
         exclude: [
           '@tessera-gateway/core',
           '@tessera-gateway/provider-chatgpt',
+          '@tessera-gateway/provider-gemini',
+          '@tessera-gateway/provider-perplexity',
           '@tessera-gateway/runtime',
           '@tessera-gateway/observability',
           '@tessera-gateway/security',
@@ -67,6 +87,8 @@ export default defineConfig({
         exclude: [
           '@tessera-gateway/core',
           '@tessera-gateway/provider-chatgpt',
+          '@tessera-gateway/provider-gemini',
+          '@tessera-gateway/provider-perplexity',
           '@tessera-gateway/runtime',
           '@tessera-gateway/observability',
           '@tessera-gateway/security',
