@@ -20,9 +20,9 @@ The package adapters still return stub responses when called directly through th
 Commands used with desktop runtime running:
 
 ```bash
-bun run apps/mcp/mcp-send-prompt-full.ts gemini
-bun run apps/mcp/mcp-send-prompt-full.ts perplexity
-bun run apps/mcp/mcp-send-prompt-full.ts claude
+bun run mcp:gemini "Say hi in one short sentence."
+bun run mcp:perplexity "Say hi in one short sentence."
+bun run mcp:claude "Say hi in one short sentence."
 ```
 
 Observed results:
@@ -203,6 +203,28 @@ Login notes:
 - After manual login or a non-gated provider state, the same MCP path should attempt prompt submission and answer capture.
 
 ## MCP Usage
+
+Start the desktop runtime first:
+
+```bash
+bun run dev:desktop
+```
+
+Simple prompt commands:
+
+```bash
+bun run mcp gemini "Hello, how are you?"
+bun run mcp:gemini "Hello, how are you?"
+bun run mcp:perplexity "Search for the latest AI browser automation risks."
+bun run mcp:claude "Summarize this in one sentence."
+bun run mcp:chatgpt "Write a short checklist."
+```
+
+The full helper path still works:
+
+```bash
+bun run apps/mcp/mcp-send-prompt-full.ts gemini "Hello, how are you?"
+```
 
 Open a provider:
 

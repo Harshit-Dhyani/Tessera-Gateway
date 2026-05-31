@@ -188,9 +188,9 @@ bun run build
 Live MCP smoke helper:
 
 ```bash
-bun run apps/mcp/mcp-send-prompt-full.ts gemini
-bun run apps/mcp/mcp-send-prompt-full.ts perplexity
-bun run apps/mcp/mcp-send-prompt-full.ts claude
+bun run mcp:gemini "Say hi in one short sentence."
+bun run mcp:perplexity "Say hi in one short sentence."
+bun run mcp:claude "Say hi in one short sentence."
 ```
 
 The desktop runtime must be running for these smoke tests.
