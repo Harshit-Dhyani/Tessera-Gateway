@@ -220,3 +220,8 @@ docs             Architecture, provider, security, and MCP docs
 - [MCP Client Configuration](docs/mcp-client-config.md)
 - [Security](docs/security.md)
 - [Git and GitHub Workflow](docs/git-workflow.md)
+- [Contributing](CONTRIBUTING.md)
+- [Security Policy](SECURITY.md)
+- [Support](SUPPORT.md)
+- [Changelog](CHANGELOG.md)
+- [License](LICENSE)
