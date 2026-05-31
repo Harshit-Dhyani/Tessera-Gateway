@@ -14,4 +14,4 @@ export interface RouterConfig {
   timeoutMs: number;
 }
 
-export type { ModelAlias, ChatRequest, ChatResponse, ProviderHealth };
+export type { ChatRequest, ChatResponse, ModelAlias, ProviderHealth };

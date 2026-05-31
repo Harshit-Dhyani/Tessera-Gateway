@@ -8,24 +8,24 @@ import {
   createClaudePromptScript,
 } from '@tessera-gateway/provider-claude/browserAutomation';
 import {
-  type GeminiBrowserAutomationResult,
   createGeminiPromptScript,
+  type GeminiBrowserAutomationResult,
 } from '@tessera-gateway/provider-gemini/browserAutomation';
 import {
-  type PerplexityBrowserAutomationResult,
   createPerplexityPromptScript,
+  type PerplexityBrowserAutomationResult,
 } from '@tessera-gateway/provider-perplexity/browserAutomation';
 import { BrowserView, type BrowserWindow, type Session, session, shell } from 'electron';
 import type { LayoutMode, ProviderLayoutManager } from './providerLayout.js';
 import { getProviderIdFromUrl, getUrlForProvider, isApprovedUrl } from './providerSessions.js';
-import { type ProviderBrowserState, getProviderStateStore } from './providerStateStore.js';
+import { getProviderStateStore, type ProviderBrowserState } from './providerStateStore.js';
+import type { WorkspaceBounds } from './providerWorkspaceBounds.js';
 import {
   getWorkspaceBounds,
   isWorkspaceBoundsSet,
   setWorkspaceBounds,
   subscribeToWorkspaceBounds,
 } from './providerWorkspaceBounds.js';
-import type { WorkspaceBounds } from './providerWorkspaceBounds.js';
 
 const DEBUG = process.env.NODE_ENV === 'development';
 const BROWSER_AUTOMATION_PROVIDERS = new Set(['chatgpt', 'claude', 'gemini', 'perplexity']);

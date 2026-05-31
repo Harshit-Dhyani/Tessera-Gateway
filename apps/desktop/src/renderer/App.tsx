@@ -1,14 +1,13 @@
 import { providerRegistry } from '@tessera-gateway/core/providers/registry';
+import { Bolt, ChevronRight, FileText, Home, PowerOff, Server, Settings, Zap } from 'lucide-react';
 import { useEffect } from 'react';
-import { useAppStore } from './store/useAppStore';
 
 import DashboardScreen from './features/dashboard/DashboardScreen';
 import LogsScreen from './features/logs/LogsScreen';
 import ProvidersScreen from './features/providers/ProvidersScreen';
 import RuntimeScreen from './features/runtime/RuntimeScreen';
 import SettingsScreen from './features/settings/SettingsScreen';
-
-import { Bolt, ChevronRight, FileText, Home, PowerOff, Server, Settings, Zap } from 'lucide-react';
+import { useAppStore } from './store/useAppStore';
 import type { ProviderStatus, ScreenId } from './types/ipc';
 
 const navItems: { id: ScreenId; label: string; icon: typeof Home; desc: string }[] = [

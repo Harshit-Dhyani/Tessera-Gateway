@@ -51,7 +51,7 @@ export interface LogFilter {
 
 export type ScreenId = 'dashboard' | 'providers' | 'runtime' | 'logs' | 'settings';
 
-export type { ProviderBrowserState, RuntimeState, LayoutMode };
+export type { LayoutMode, ProviderBrowserState, RuntimeState };
 
 export type ProviderViewState = ProviderBrowserState;
 

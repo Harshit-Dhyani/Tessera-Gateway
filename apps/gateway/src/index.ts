@@ -178,7 +178,7 @@ fastify.get('/v1/runtime/state', async () => {
 });
 
 const start = async () => {
-  const port = Number.parseInt(process.env.PORT || '7860');
+  const port = Number.parseInt(process.env.PORT || '7860', 10);
   const host = process.env.HOST || '127.0.0.1';
 
   try {

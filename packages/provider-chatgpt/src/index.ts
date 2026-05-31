@@ -1,2 +1,2 @@
-export { ChatGPTAdapter, adapter } from './adapter.js';
-export { createChatGptPromptScript, type ChatGptBrowserAutomationResult } from './browserAutomation.js';
+export { adapter, ChatGPTAdapter } from './adapter.js';
+export { type ChatGptBrowserAutomationResult, createChatGptPromptScript } from './browserAutomation.js';

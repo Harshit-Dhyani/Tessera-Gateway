@@ -3,12 +3,20 @@
   "version": "0.1.0",
   "private": true,
   "description": "Tessera Gateway - V1",
-  "workspaces": ["apps/*", "packages/*"],
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
   "scripts": {
     "dev": "bun run scripts/dev.ts",
     "dev:desktop": "bun run --filter @tessera-gateway/desktop dev",
     "dev:gateway": "bun run --filter @tessera-gateway/gateway dev",
     "dev:mcp": "bun run --filter @tessera-gateway/mcp dev",
+    "mcp": "bun run apps/mcp/mcp-send-prompt-full.ts",
+    "mcp:chatgpt": "bun run apps/mcp/mcp-send-prompt-full.ts chatgpt",
+    "mcp:claude": "bun run apps/mcp/mcp-send-prompt-full.ts claude",
+    "mcp:gemini": "bun run apps/mcp/mcp-send-prompt-full.ts gemini",
+    "mcp:perplexity": "bun run apps/mcp/mcp-send-prompt-full.ts perplexity",
     "build": "bun run scripts/build-all.ts",
     "build:packages": "bun run --filter @tessera-gateway/* build",
     "build:apps": "bun run --filter @tessera-gateway/desktop build && bun run --filter @tessera-gateway/gateway build && bun run --filter @tessera-gateway/mcp build",
@@ -21,9 +29,9 @@
     "tree:generate": "bun run scripts/tree-generate.ts"
   },
   "devDependencies": {
-    "@biomejs/biome": "^1.9.0",
-    "typescript": "^5.5.0",
-    "vitest": "^2.0.0"
+    "@biomejs/biome": "^2.4.16",
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.7"
   },
   "engines": {
     "node": ">=20.0.0"

@@ -188,12 +188,22 @@ bun run build
 Live MCP smoke helper:
 
 ```bash
-bun run apps/mcp/mcp-send-prompt-full.ts gemini
-bun run apps/mcp/mcp-send-prompt-full.ts perplexity
-bun run apps/mcp/mcp-send-prompt-full.ts claude
+bun run mcp:gemini "Say hi in one short sentence."
+bun run mcp:perplexity "Say hi in one short sentence."
+bun run mcp:claude "Say hi in one short sentence."
 ```
 
 The desktop runtime must be running for these smoke tests.
+
+Short MCP prompt commands:
+
+```bash
+bun run mcp gemini "Hello, how are you?"
+bun run mcp:gemini "Hello, how are you?"
+bun run mcp:perplexity "Search for the latest AI browser automation risks."
+bun run mcp:claude "Summarize this in one sentence."
+bun run mcp:chatgpt "Write a short checklist."
+```
 
 ## Project Structure
 
@@ -220,3 +230,8 @@ docs             Architecture, provider, security, and MCP docs
 - [MCP Client Configuration](docs/mcp-client-config.md)
 - [Security](docs/security.md)
 - [Git and GitHub Workflow](docs/git-workflow.md)
+- [Contributing](CONTRIBUTING.md)
+- [Security Policy](SECURITY.md)
+- [Support](SUPPORT.md)
+- [Changelog](CHANGELOG.md)
+- [License](LICENSE)

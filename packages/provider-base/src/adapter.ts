@@ -1,5 +1,5 @@
 import type { ChatRequest, ChatResponse, ProviderHealth } from '@tessera-gateway/core';
-import { ErrorCodes, createError } from '@tessera-gateway/core';
+import { createError, ErrorCodes } from '@tessera-gateway/core';
 import type { IProviderAdapter, ProviderMetadata } from './types.js';
 
 export interface StubErrorResponse {
