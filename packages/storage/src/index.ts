@@ -56,7 +56,7 @@ export async function initializeDatabase(path = './data/gateway.db'): Promise<Da
         );
       `);
     }
-  } catch (e) {
+  } catch {
     console.warn('[Storage] Running in memory mode (no filesystem)');
     db = new SQL.Database();
 
@@ -115,7 +115,7 @@ export async function closeDatabase(): Promise<void> {
       const buffer = Buffer.from(data);
       fs.mkdirSync(dirname(dbPath), { recursive: true });
       fs.writeFileSync(dbPath, buffer);
-    } catch (e) {
+    } catch {
       console.warn('[Storage] Could not save database to disk');
     }
     db.close();

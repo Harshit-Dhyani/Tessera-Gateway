@@ -9,7 +9,7 @@ const { execSync } = require('child_process');
 try {
   execSync('bun run typecheck', { stdio: 'inherit' });
   console.log('\n[Build] typecheck - OK');
-} catch (e) {
+} catch {
   console.error('\n[Build] typecheck - FAILED');
   process.exit(1);
 }

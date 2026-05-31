@@ -97,7 +97,7 @@ export function createNotImplementedResponse(provider: string): ChatResponse {
   };
 }
 
-export function createNotImplementedHealth(provider: string): ProviderHealth {
+export function createNotImplementedHealth(_provider: string): ProviderHealth {
   return {
     status: 'stubbed',
     lastChecked: Date.now(),

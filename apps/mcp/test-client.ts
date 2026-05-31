@@ -1,5 +1,3 @@
-import process from 'node:process';
-
 interface ToolCallParams {
   name?: string;
   arguments?: Record<string, unknown>;

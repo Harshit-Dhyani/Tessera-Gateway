@@ -2,7 +2,7 @@
 /**
  * ChatGPT Smoke Test - Verifies the vertical slice works
  *
- * Usage: bun run scripts/smoke-chatgpt.ts
+ * Usage: bun run scripts/smoke/smoke-chatgpt.ts
  *
  * Prerequisites:
  * 1. Desktop app must be running (bun run dev:desktop)
@@ -32,7 +32,7 @@ async function openProvider(providerId: string): Promise<{ success: boolean; sta
       body: JSON.stringify({ providerId }),
     });
     return res.json();
-  } catch (e) {
+  } catch {
     return { success: false };
   }
 }
@@ -58,8 +58,8 @@ async function sendPrompt(
       body: JSON.stringify({ providerId, prompt }),
     });
     return res.json();
-  } catch (e) {
-    return { success: false, error: String(e) };
+  } catch (error) {
+    return { success: false, error: String(error) };
   }
 }
 
@@ -69,57 +69,53 @@ async function main() {
   let passed = 0;
   let failed = 0;
 
-  // Test 1: Desktop health
   console.log('Test 1: Desktop health check...');
   const desktopOk = await checkDesktopHealth();
   if (desktopOk) {
-    console.log('  ✓ Desktop runtime is healthy\n');
+    console.log('  Desktop runtime is healthy\n');
     passed++;
   } else {
-    console.log('  ✗ Desktop runtime not available (start with bun run dev:desktop)\n');
+    console.log('  Desktop runtime not available (start with bun run dev:desktop)\n');
     failed++;
     process.exit(1);
   }
 
-  // Test 2: Open ChatGPT provider
   console.log('Test 2: open_provider("chatgpt")...');
   const openResult = await openProvider('chatgpt');
   if (openResult.success) {
-    console.log('  ✓ ChatGPT opened\n');
+    console.log('  ChatGPT opened\n');
     passed++;
   } else {
-    console.log('  ✗ Failed to open ChatGPT\n');
+    console.log('  Failed to open ChatGPT\n');
     failed++;
   }
 
-  // Test 3: Get provider state
   console.log('Test 3: get_provider_state("chatgpt")...');
   const state = await getProviderState('chatgpt');
   if (state && typeof state === 'object' && 'providerId' in state) {
-    console.log('  ✓ State retrieved:', JSON.stringify(state).slice(0, 100) + '...\n');
+    console.log(`  State retrieved: ${JSON.stringify(state).slice(0, 100)}...\n`);
     passed++;
   } else {
-    console.log('  ✗ Could not get state\n');
+    console.log('  Could not get state\n');
     failed++;
   }
 
-  // Test 4: Send prompt (requires manual login)
   console.log('Test 4: send_prompt("chatgpt", "hello")...');
   const promptResult = await sendPrompt('chatgpt', 'hello');
   if (promptResult.success && promptResult.response) {
-    console.log('  ✓ Got response:', promptResult.response.slice(0, 80) + '...\n');
+    console.log(`  Got response: ${promptResult.response.slice(0, 80)}...\n`);
     passed++;
   } else if (!promptResult.success && promptResult.errorCode === 'PROVIDER_NOT_AUTHENTICATED') {
-    console.log('  ⚠ Not authenticated (expected - user must log in first)\n');
+    console.log('  Not authenticated (expected - user must log in first)\n');
     passed++;
   } else if (
     !promptResult.success &&
     (promptResult.errorCode === 'PROVIDER_UI_CHANGED' || promptResult.errorCode === 'PROVIDER_CAPTURE_FAILED')
   ) {
-    console.log('  ⚠ UI selector issue detected:', promptResult.errorCode, '\n');
+    console.log(`  UI selector issue detected: ${promptResult.errorCode}\n`);
     passed++;
   } else {
-    console.log('  ⚠ Result:', JSON.stringify(promptResult), '\n');
+    console.log(`  Result: ${JSON.stringify(promptResult)}\n`);
     passed++;
   }
 

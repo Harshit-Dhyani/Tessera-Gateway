@@ -11,7 +11,9 @@ const pending = new Map();
 
 mcp.stdout.setEncoding('utf8');
 
-mcp.stdout.on('line', (line) => {
+const rl = createInterface({ input: mcp.stdout });
+
+rl.on('line', (line) => {
   try {
     const msg = JSON.parse(line);
     const resolver = pending.get(msg.id);
@@ -53,11 +55,13 @@ async function main() {
   }
 
   mcp.kill();
+  rl.close();
   process.exit(0);
 }
 
 setTimeout(() => {
   mcp.kill();
+  rl.close();
   process.exit(1);
 }, 30000);
 main();

@@ -3,12 +3,12 @@ import { join } from 'path';
 
 const EXCLUDE_DIRS = ['node_modules', '.next', '.turbo', 'opensrc', '.github', '.kilo', '.opencode', '.git', 'dist'];
 
-const EXCLUDE_EXTENSIONS = ['.lock', '.log', '.json', '.md', '.toml', '.yml', '.yaml'];
+const EXCLUDE_EXTENSIONS = ['.lock', '.log', '.json', '.md', '.toml', '.yml', '.yaml', '.tsbuildinfo'];
 
 const ROOT = process.cwd();
 const OUTPUT_FILE = join(ROOT, 'docs', 'tree.md');
 
-function shouldExclude(name: string, fullPath: string): boolean {
+function shouldExclude(name: string, _fullPath: string): boolean {
   if (EXCLUDE_DIRS.includes(name)) return true;
   if (name.startsWith('.')) return true;
   const ext = name.substring(name.lastIndexOf('.'));
