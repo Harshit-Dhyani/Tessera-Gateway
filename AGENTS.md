@@ -785,6 +785,8 @@ Every stubbed provider adapter and scaffolded runtime path must return a normali
 - Renderer may manage UI controls and display state only
 - MCP and gateway must call the shared runtime orchestration layer rather than inventing their own provider flow
 - Provider BrowserView opening must be non-blocking: create/register/mount/layout the view before remote `loadURL` work, and guard duplicate opens while a provider is still loading
+- Single-provider layout must follow the focused provider, not the first provider that happened to open
+- Dev startup must reuse an already healthy loopback gateway instead of crashing on an occupied canonical port
 
 ### Stub Testing Requirements
 

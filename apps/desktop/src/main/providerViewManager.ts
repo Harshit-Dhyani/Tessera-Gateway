@@ -397,6 +397,10 @@ export class ProviderViewManager {
     const view = this.views.get(targetProviderId);
     if (!view) return;
 
+    if (currentLayout === 'single') {
+      this.layoutManager.setPrimaryProvider(targetProviderId);
+    }
+
     // In single mode, hide all other providers off-screen
     // In split/grid mode, keep all visible at their grid positions, just bring focused to front
     if (currentLayout === 'single') {
@@ -613,14 +617,15 @@ export class ProviderViewManager {
       focusedId = openIds[0];
     }
 
+    if (currentLayout === 'single' && focusedId) {
+      this.layoutManager.setPrimaryProvider(focusedId);
+    }
+
     const boundsMap = this.layoutManager.calculateBounds(workspaceBounds.width, workspaceBounds.height);
 
     for (const providerId of openIds) {
       const view = this.views.get(providerId);
       if (!view) continue;
-
-      const paneBounds = boundsMap.get(providerId);
-      if (!paneBounds) continue;
 
       const isFocused = providerId === focusedId;
 
@@ -632,6 +637,9 @@ export class ProviderViewManager {
         this.stateStore.setParticipatesInLayout(providerId, false);
         if (DEBUG) console.log(`[ProviderViewManager] Hidden off-screen (single mode): ${providerId}`);
       } else {
+        const paneBounds = boundsMap.get(providerId);
+        if (!paneBounds) continue;
+
         // Round all bounds to integers (Electron requires integers)
         const finalBounds = {
           x: Math.round(workspaceBounds.x + paneBounds.x),

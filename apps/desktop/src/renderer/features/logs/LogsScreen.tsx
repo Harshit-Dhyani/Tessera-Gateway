@@ -1,14 +1,47 @@
-import { FileText } from 'lucide-react';
+import { FileText, RotateCw, Trash2 } from 'lucide-react';
 import { useAppStore } from '../../store/useAppStore';
 
 export default function LogsScreen() {
-  const { logs } = useAppStore();
+  const { logs, setLogs } = useAppStore();
+
+  const refreshLogs = async () => {
+    if (window.gateway) {
+      setLogs(await window.gateway.getLogs());
+    }
+  };
+
+  const clearLogs = async () => {
+    if (window.gateway) {
+      await window.gateway.clearLogs();
+      await refreshLogs();
+    }
+  };
 
   return (
     <div className="animate-fade-in space-y-6">
-      <div className="flex items-center gap-2">
-        <FileText className="w-4 h-4 text-amber-400" />
-        <h1 className="text-lg font-bold text-zinc-100 tracking-tight">SYSTEM_LOGS</h1>
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex items-center gap-2">
+          <FileText className="w-4 h-4 text-amber-400" />
+          <h1 className="text-lg font-bold text-zinc-100 tracking-tight">SYSTEM_LOGS</h1>
+        </div>
+        <div className="flex items-center gap-1">
+          <button
+            type="button"
+            onClick={refreshLogs}
+            className="p-1.5 text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800 rounded transition-colors"
+            title="Refresh logs"
+          >
+            <RotateCw className="w-4 h-4" />
+          </button>
+          <button
+            type="button"
+            onClick={clearLogs}
+            className="p-1.5 text-zinc-500 hover:text-red-300 hover:bg-zinc-800 rounded transition-colors"
+            title="Clear logs"
+          >
+            <Trash2 className="w-4 h-4" />
+          </button>
+        </div>
       </div>
 
       <div className="bg-zinc-900/40 border border-zinc-800 rounded-sm overflow-hidden min-h-[300px]">

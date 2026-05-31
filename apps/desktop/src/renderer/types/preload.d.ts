@@ -1,4 +1,12 @@
-import type { GatewayHealth, LayoutMode, ProviderBrowserState, ProviderViewState, ScreenId, Settings } from './ipc';
+import type {
+  GatewayHealth,
+  LayoutMode,
+  LogEntry,
+  ProviderBrowserState,
+  ProviderViewState,
+  ScreenId,
+  Settings,
+} from './ipc';
 
 declare global {
   interface Window {
@@ -25,7 +33,7 @@ declare global {
       updateSettings: (settings: Partial<Settings>) => Promise<{ success: boolean }>;
       getGatewayHealth: () => Promise<GatewayHealth>;
       getMcpHealth: () => Promise<GatewayHealth>;
-      getLogs: () => Promise<unknown[]>;
+      getLogs: () => Promise<LogEntry[]>;
       clearLogs: () => Promise<{ success: boolean }>;
       setProviderWorkspaceBounds: (bounds: { x: number; y: number; width: number; height: number }) => Promise<{
         success: boolean;

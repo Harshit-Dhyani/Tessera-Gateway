@@ -37,12 +37,19 @@ export default function App() {
     setGatewayHealth,
     setMcpHealth,
     setSettings,
+    setLogs,
     gatewayHealth,
     mcpHealth,
   } = useAppStore();
 
   useEffect(() => {
     if (window.gateway) {
+      const refreshRuntimeSurfaces = () => {
+        window.gateway.getGatewayHealth().then(setGatewayHealth);
+        window.gateway.getMcpHealth().then(setMcpHealth);
+        window.gateway.getLogs().then(setLogs);
+      };
+
       window.gateway.getVersion().then(setAppVersion);
       window.gateway.getSettings().then(setSettings);
 
@@ -66,10 +73,11 @@ export default function App() {
       });
       setProviderStatuses(initialStatuses);
 
-      window.gateway.getGatewayHealth().then(setGatewayHealth);
-      window.gateway.getMcpHealth().then(setMcpHealth);
+      refreshRuntimeSurfaces();
+      const interval = window.setInterval(refreshRuntimeSurfaces, 5000);
+      return () => window.clearInterval(interval);
     }
-  }, [setAppVersion, setSettings, setProviderStatuses, setGatewayHealth, setMcpHealth]);
+  }, [setAppVersion, setSettings, setProviderStatuses, setGatewayHealth, setMcpHealth, setLogs]);
 
   useEffect(() => {
     if (window.gateway) {

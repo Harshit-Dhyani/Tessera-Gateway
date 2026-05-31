@@ -1,4 +1,4 @@
-import { Shield, Terminal } from 'lucide-react';
+import { RotateCw, Shield, Terminal } from 'lucide-react';
 import { useAppStore } from '../../store/useAppStore';
 
 interface StatusBadgeProps {
@@ -24,14 +24,31 @@ function StatusBadge({ status }: StatusBadgeProps) {
 }
 
 export default function RuntimeScreen() {
-  const { gatewayHealth, mcpHealth, appVersion } = useAppStore();
+  const { gatewayHealth, mcpHealth, appVersion, setGatewayHealth, setMcpHealth } = useAppStore();
+
+  const refreshRuntime = async () => {
+    if (window.gateway) {
+      setGatewayHealth(await window.gateway.getGatewayHealth());
+      setMcpHealth(await window.gateway.getMcpHealth());
+    }
+  };
 
   return (
     <div className="space-y-6" role="region" aria-label="Runtime Status">
       {/* Page Header */}
-      <div className="flex items-center gap-3">
-        <Terminal className="w-5 h-5 text-amber-400" aria-hidden="true" />
-        <h1 className="text-xl font-bold text-zinc-100 tracking-tight">RUNTIME_STATUS</h1>
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center gap-3">
+          <Terminal className="w-5 h-5 text-amber-400" aria-hidden="true" />
+          <h1 className="text-xl font-bold text-zinc-100 tracking-tight">RUNTIME_STATUS</h1>
+        </div>
+        <button
+          type="button"
+          onClick={refreshRuntime}
+          className="p-1.5 text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800 rounded transition-colors"
+          title="Refresh runtime status"
+        >
+          <RotateCw className="w-4 h-4" />
+        </button>
       </div>
 
       {/* Server Cards */}

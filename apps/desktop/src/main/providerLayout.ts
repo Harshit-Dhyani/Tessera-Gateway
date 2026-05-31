@@ -44,6 +44,11 @@ export class ProviderLayoutManager {
     this.openProviders = this.openProviders.filter((id) => id !== providerId);
   }
 
+  setPrimaryProvider(providerId: string): void {
+    if (!this.openProviders.includes(providerId)) return;
+    this.openProviders = [providerId, ...this.openProviders.filter((id) => id !== providerId)];
+  }
+
   getOpenProviders(): string[] {
     return [...this.openProviders];
   }
@@ -96,8 +101,15 @@ export class ProviderLayoutManager {
         break;
 
       case 'grid':
-        if (providers.length <= 2) {
-          // 1-2 providers in grid mode = split
+        if (providers.length === 1) {
+          bounds.set(providers[0], {
+            x: this.config.padding,
+            y: this.config.padding,
+            width: paddedWidth,
+            height: paddedHeight,
+          });
+        } else if (providers.length === 2) {
+          // 2 providers in grid mode = split
           const halfWidth = (paddedWidth - this.config.gap) / 2;
           providers.slice(0, 2).forEach((provider, index) => {
             bounds.set(provider, {

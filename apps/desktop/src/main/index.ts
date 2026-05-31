@@ -14,10 +14,32 @@ import {
 
 const DEBUG = process.env.NODE_ENV === 'development';
 const RUNTIME_PORT = 7870;
+const MAX_RUNTIME_LOGS = 1000;
 
 let mainWindow: BrowserWindow | null = null;
 const layoutManager = getProviderLayoutManager();
 const viewManager = initializeProviderViewManager(layoutManager);
+const runtimeLogs: Array<{
+  id: string;
+  timestamp: number;
+  provider: string;
+  modelAlias: string;
+  latencyMs: number;
+  result: 'success' | 'error' | 'timeout';
+  errorCode?: string;
+}> = [];
+
+function appendRuntimeLog(entry: Omit<(typeof runtimeLogs)[number], 'id' | 'timestamp'>): void {
+  runtimeLogs.unshift({
+    id: `log_${Date.now()}_${runtimeLogs.length}`,
+    timestamp: Date.now(),
+    ...entry,
+  });
+
+  if (runtimeLogs.length > MAX_RUNTIME_LOGS) {
+    runtimeLogs.length = MAX_RUNTIME_LOGS;
+  }
+}
 
 function readProviderId(body: unknown): string | null {
   if (!body || typeof body !== 'object') return null;
@@ -87,6 +109,13 @@ const runtimeServer = http.createServer(async (req, res) => {
         return;
       }
       const state = await viewManager.openProviderView(providerId);
+      appendRuntimeLog({
+        provider: providerId,
+        modelAlias: providerId,
+        latencyMs: 0,
+        result: state.errorCode ? 'error' : 'success',
+        errorCode: state.errorCode,
+      });
       res.writeHead(200);
       res.end(JSON.stringify(state));
       return;
@@ -102,6 +131,7 @@ const runtimeServer = http.createServer(async (req, res) => {
         return;
       }
       await viewManager.closeProviderView(providerId);
+      appendRuntimeLog({ provider: providerId, modelAlias: providerId, latencyMs: 0, result: 'success' });
       res.writeHead(200);
       res.end(JSON.stringify({ success: true }));
       return;
@@ -118,6 +148,13 @@ const runtimeServer = http.createServer(async (req, res) => {
       }
       await viewManager.focusProviderView(providerId);
       const state = viewManager.getAllStates().find((s) => s.providerId === providerId);
+      appendRuntimeLog({
+        provider: providerId,
+        modelAlias: providerId,
+        latencyMs: 0,
+        result: state?.errorCode ? 'error' : 'success',
+        errorCode: state?.errorCode,
+      });
       res.writeHead(200);
       res.end(JSON.stringify(state || null));
       return;
@@ -143,6 +180,13 @@ const runtimeServer = http.createServer(async (req, res) => {
       const result = (await viewManager.sendPrompt(body.providerId, body.prompt)) as NormalizedResponse;
 
       const latencyMs = Date.now() - startTime;
+      appendRuntimeLog({
+        provider: result.providerId,
+        modelAlias: body.providerId,
+        latencyMs,
+        result: result.ok ? 'success' : 'error',
+        errorCode: result.error?.code,
+      });
       if (DEBUG)
         console.log(
           `[Runtime] ${requestId} sendPrompt done: ok=${result.ok}, latencyMs=${latencyMs}, errorCode=${result.error?.code || 'none'}`,
@@ -183,18 +227,15 @@ const runtimeServer = http.createServer(async (req, res) => {
         res.end(JSON.stringify({ error: 'providerIds must be a non-empty array' }));
         return;
       }
-      const openIds: string[] = [];
-
-      for (const id of providerIds) {
-        await viewManager.openProviderView(id);
-        openIds.push(id);
-      }
+      const openIds = [...new Set(providerIds)];
+      await Promise.all(openIds.map((id) => viewManager.openProviderView(id)));
 
       const layout = openIds.length === 1 ? 'single' : openIds.length === 2 ? 'split' : 'grid';
       viewManager.setLayout(layout);
 
-      const focused = providerIds[providerIds.length - 1];
+      const focused = openIds[openIds.length - 1];
       await viewManager.focusProviderView(focused);
+      appendRuntimeLog({ provider: focused, modelAlias: layout, latencyMs: 0, result: 'success' });
 
       res.writeHead(200);
       res.end(
@@ -217,12 +258,16 @@ const runtimeServer = http.createServer(async (req, res) => {
         return;
       }
       viewManager.setLayout(layout);
-      const openProviders = layoutManager.getOpenProviders();
+      const visibleProviders = viewManager
+        .getAllStates()
+        .filter((state) => state.isVisible)
+        .map((state) => state.providerId);
+      appendRuntimeLog({ provider: 'runtime', modelAlias: layout, latencyMs: 0, result: 'success' });
       res.writeHead(200);
       res.end(
         JSON.stringify({
           layout,
-          visibleProviders: openProviders,
+          visibleProviders,
         }),
       );
       return;
@@ -246,6 +291,19 @@ const runtimeServer = http.createServer(async (req, res) => {
           providersScreenActive: viewManager.isProvidersScreenActiveNow(),
         }),
       );
+      return;
+    }
+
+    if (path === '/runtime/logs' && method === 'GET') {
+      res.writeHead(200);
+      res.end(JSON.stringify(runtimeLogs));
+      return;
+    }
+
+    if (path === '/runtime/logs/clear' && method === 'POST') {
+      runtimeLogs.length = 0;
+      res.writeHead(200);
+      res.end(JSON.stringify({ success: true }));
       return;
     }
 
@@ -468,10 +526,11 @@ ipcMain.handle('mcp:health', async () => {
 
 // Logs handlers
 ipcMain.handle('logs:get', async () => {
-  return [];
+  return runtimeLogs;
 });
 
 ipcMain.handle('logs:clear', async () => {
+  runtimeLogs.length = 0;
   return { success: true };
 });
 
