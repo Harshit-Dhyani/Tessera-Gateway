@@ -14,7 +14,7 @@
     "@tessera-gateway/core": "workspace:*",
     "@tessera-gateway/runtime": "workspace:*",
     "@tessera-gateway/observability": "workspace:*",
-    "fastify": "^4.26.0",
+    "fastify": "^5.8.5",
     "@fastify/cors": "^9.0.0"
   },
   "devDependencies": {
