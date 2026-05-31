@@ -15,6 +15,7 @@ const DEBUG = process.env.NODE_ENV === 'development';
 
 export class ProviderViewManager {
   private views: Map<string, BrowserView> = new Map();
+  private openingProviders: Set<string> = new Set();
   private mainWindow: BrowserWindow | null = null;
   private layoutManager: ProviderLayoutManager;
   private stateStore = getProviderStateStore();
@@ -117,7 +118,7 @@ export class ProviderViewManager {
       return this.stateStore.getState(providerId);
     }
 
-    if (this.views.has(providerId)) {
+    if (this.views.has(providerId) || this.openingProviders.has(providerId)) {
       if (!this.isProvidersScreenActive) {
         this.isProvidersScreenActive = true;
         await this.restoreProviderViews();
@@ -193,6 +194,7 @@ export class ProviderViewManager {
 
     try {
       if (DEBUG) console.log(`[ProviderViewManager] Creating BrowserView for: ${providerId}`);
+      this.openingProviders.add(providerId);
 
       let view: BrowserView;
       try {
@@ -210,7 +212,20 @@ export class ProviderViewManager {
         return this.stateStore.getState(providerId);
       }
 
+      this.views.set(providerId, view);
+      this.stateStore.setMounted(providerId, true);
+      this.layoutManager.addProvider(providerId);
+      this.autoSetLayoutFromProviderCount();
+
       const webContents = view.webContents;
+
+      webContents.on('did-start-loading', () => {
+        this.stateStore.updateNavigationState(providerId, {
+          loadState: 'loading',
+          canGoBack: webContents.canGoBack(),
+          canGoForward: webContents.canGoForward(),
+        });
+      });
 
       webContents.on('did-fail-load', (_event, errorCode, errorDescription) => {
         if (DEBUG) console.error(`[ProviderViewManager] Failed to load ${providerId}:`, errorCode, errorDescription);
@@ -231,7 +246,6 @@ export class ProviderViewManager {
           currentUrl: url,
           canGoBack: webContents.canGoBack(),
           canGoForward: webContents.canGoForward(),
-          loadState: 'ready',
           lastNavigationAt: Date.now(),
         });
       });
@@ -257,22 +271,6 @@ export class ProviderViewManager {
         return { action: 'deny' };
       });
 
-      if (DEBUG) console.log(`[ProviderViewManager] Loading URL: ${url}`);
-      try {
-        await webContents.loadURL(url);
-      } catch (loadError) {
-        if (DEBUG) console.error(`[ProviderViewManager] Failed to load URL: ${loadError}`);
-        this.stateStore.setError(providerId, ErrorCodes.PROVIDER_UI_CHANGED);
-        return this.stateStore.getState(providerId);
-      }
-
-      this.views.set(providerId, view);
-      this.stateStore.setMounted(providerId, true);
-      this.stateStore.updateNavigationState(providerId, { loadState: 'ready' });
-
-      this.layoutManager.addProvider(providerId);
-      this.autoSetLayoutFromProviderCount();
-
       // Always add view to window when screen is active
       if (this.isProvidersScreenActive && this.mainWindow) {
         const paneBounds = this.calculateBoundsForProvider(providerId, workspaceBounds);
@@ -287,8 +285,20 @@ export class ProviderViewManager {
 
       await this.focusProviderView(providerId);
 
-      if (DEBUG) console.log(`[ProviderViewManager] Mounted provider view: ${providerId}`);
+      if (DEBUG) console.log(`[ProviderViewManager] Mounted provider view immediately: ${providerId}`);
+
+      if (DEBUG) console.log(`[ProviderViewManager] Loading URL in background: ${url}`);
+      void webContents
+        .loadURL(url)
+        .catch((loadError) => {
+          if (DEBUG) console.error(`[ProviderViewManager] Failed to load URL: ${loadError}`);
+          this.stateStore.setError(providerId, ErrorCodes.PROVIDER_UI_CHANGED);
+        })
+        .finally(() => {
+          this.openingProviders.delete(providerId);
+        });
     } catch (error) {
+      this.openingProviders.delete(providerId);
       if (DEBUG) console.error(`[ProviderViewManager] Error opening ${providerId}:`, error);
       this.stateStore.setError(providerId, ErrorCodes.RUNTIME_ERROR);
     }
@@ -344,6 +354,7 @@ export class ProviderViewManager {
       }
       this.views.delete(providerId);
     }
+    this.openingProviders.delete(providerId);
 
     if (this.stateStore.getActiveProviderId() === providerId) {
       this.stateStore.setActiveProvider(null);

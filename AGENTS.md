@@ -784,6 +784,7 @@ Every stubbed provider adapter and scaffolded runtime path must return a normali
 - Desktop main may manage BrowserView lifecycle, bounds, visibility, and session bridge state only
 - Renderer may manage UI controls and display state only
 - MCP and gateway must call the shared runtime orchestration layer rather than inventing their own provider flow
+- Provider BrowserView opening must be non-blocking: create/register/mount/layout the view before remote `loadURL` work, and guard duplicate opens while a provider is still loading
 
 ### Stub Testing Requirements
 
