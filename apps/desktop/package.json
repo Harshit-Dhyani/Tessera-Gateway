@@ -22,7 +22,7 @@
     "clsx": "^2.1.0",
     "electron": "^28.0.0",
     "lucide-react": "^0.400.0",
-    "react": "^18.2.0",
+    "react": "^19.2.6",
     "react-dom": "^18.2.0",
     "zustand": "^4.5.0"
   },
