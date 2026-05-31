@@ -1,0 +1,21 @@
+{
+  "name": "unit-tests",
+  "type": "module",
+  "scripts": {
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "@tessera-gateway/core": "workspace:*",
+    "@tessera-gateway/runtime": "workspace:*",
+    "@tessera-gateway/router": "workspace:*",
+    "@tessera-gateway/provider-base": "workspace:*",
+    "@tessera-gateway/provider-chatgpt": "workspace:*",
+    "@tessera-gateway/observability": "workspace:*",
+    "@tessera-gateway/security": "workspace:*"
+  },
+  "devDependencies": {
+    "typescript": "^5.5.0",
+    "vitest": "^2.0.0"
+  }
+}
