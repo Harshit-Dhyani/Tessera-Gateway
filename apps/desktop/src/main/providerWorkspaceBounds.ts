@@ -10,7 +10,9 @@ const listeners: Set<(bounds: WorkspaceBounds) => void> = new Set();
 
 export function setWorkspaceBounds(bounds: WorkspaceBounds): void {
   workspaceBounds = bounds;
-  listeners.forEach((cb) => cb(bounds));
+  listeners.forEach((cb) => {
+    cb(bounds);
+  });
 }
 
 export function getWorkspaceBounds(): WorkspaceBounds | null {

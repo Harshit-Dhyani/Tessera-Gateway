@@ -1,2 +1,2 @@
-export { validatePath, validateUrl, validateHost } from './validation.js';
 export { redactObject, redactString } from './redaction.js';
+export { validateHost, validatePath, validateUrl } from './validation.js';

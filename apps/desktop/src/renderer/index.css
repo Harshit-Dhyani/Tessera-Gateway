@@ -204,7 +204,10 @@ body {
 
 /* Card hover effects */
 .card-hover {
-  transition: transform var(--transition-fast), box-shadow var(--transition-fast), border-color var(--transition-fast);
+  transition:
+    transform var(--transition-fast),
+    box-shadow var(--transition-fast),
+    border-color var(--transition-fast);
 }
 
 .card-hover:hover {

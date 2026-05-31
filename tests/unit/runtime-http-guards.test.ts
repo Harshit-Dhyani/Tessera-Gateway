@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import {
-  RuntimeBodyTooLargeError,
   appendRuntimeBodyChunk,
   getAllowedRuntimeOrigin,
   parseRuntimeJsonBody,
+  RuntimeBodyTooLargeError,
 } from '../../apps/desktop/src/main/runtimeHttpGuards';
 
 describe('desktop runtime HTTP guards', () => {

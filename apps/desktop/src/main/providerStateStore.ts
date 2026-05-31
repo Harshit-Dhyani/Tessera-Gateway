@@ -47,7 +47,9 @@ export class ProviderStateStore {
 
   private broadcast(): void {
     const allStates = this.getAllStates();
-    this.listeners.forEach((cb) => cb(allStates));
+    this.listeners.forEach((cb) => {
+      cb(allStates);
+    });
   }
 
   private ensureState(providerId: string): ProviderBrowserState {

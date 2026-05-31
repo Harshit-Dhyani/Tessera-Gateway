@@ -59,7 +59,9 @@ async function startDev() {
 
   process.on('SIGINT', () => {
     console.log('[Dev] Stopping dev servers...');
-    processes.forEach((p) => p.kill());
+    processes.forEach((p) => {
+      p.kill();
+    });
     process.exit(0);
   });
 }

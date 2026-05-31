@@ -1,16 +1,16 @@
+import type { NormalizedResponse } from '@tessera-gateway/core';
+import { providerRegistry } from '@tessera-gateway/core';
+import { app, BrowserWindow, ipcMain } from 'electron';
 import http from 'http';
 import { join } from 'path';
-import { providerRegistry } from '@tessera-gateway/core';
-import type { NormalizedResponse } from '@tessera-gateway/core';
-import { BrowserWindow, app, ipcMain } from 'electron';
-import { type LayoutMode, getProviderLayoutManager } from './providerLayout.js';
+import { getProviderLayoutManager, type LayoutMode } from './providerLayout.js';
 import { initializeProviderViewManager } from './providerViewManager.js';
 import { getWorkspaceBounds, setWorkspaceBounds } from './providerWorkspaceBounds.js';
 import {
-  RuntimeBodyTooLargeError,
   appendRuntimeBodyChunk,
   getAllowedRuntimeOrigin,
   parseRuntimeJsonBody,
+  RuntimeBodyTooLargeError,
 } from './runtimeHttpGuards.js';
 
 const DEBUG = process.env.NODE_ENV === 'development';

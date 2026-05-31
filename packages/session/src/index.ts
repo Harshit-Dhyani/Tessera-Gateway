@@ -1,5 +1,5 @@
 import { getLogger } from '@tessera-gateway/observability/logger.js';
-import { type Browser, type BrowserContext, type Page, chromium } from 'playwright';
+import { type Browser, type BrowserContext, chromium, type Page } from 'playwright';
 import type { ISessionManager, SessionInfo, SessionStatus } from './interfaces.js';
 
 const logger = getLogger({ name: 'session' });
@@ -195,5 +195,5 @@ export function getSessionManager(): ISessionManager {
   return sessionManager;
 }
 
-export { SessionManager };
 export type { ISessionManager, SessionInfo, SessionStatus };
+export { SessionManager };

@@ -1,4 +1,4 @@
-import { ErrorCodes, chatResponseSchema, createError, resolveProviderId } from '@tessera-gateway/core';
+import { chatResponseSchema, createError, ErrorCodes, resolveProviderId } from '@tessera-gateway/core';
 import type { IProviderAdapter } from '@tessera-gateway/provider-base';
 import type { ChatRequest, ChatResponse, IRouter, ProviderHealth, RouterConfig } from './interfaces.js';
 
@@ -89,5 +89,5 @@ export function getRouter(): IRouter {
   return routerInstance;
 }
 
-export { Router };
 export type { IRouter, RouterConfig };
+export { Router };
