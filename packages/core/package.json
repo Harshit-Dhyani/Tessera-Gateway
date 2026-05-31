@@ -1,0 +1,55 @@
+{
+  "name": "@tessera-gateway/core",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    },
+    "./schemas": {
+      "import": "./dist/schemas.js",
+      "types": "./dist/schemas.d.ts"
+    },
+    "./errors": {
+      "import": "./dist/errors.js",
+      "types": "./dist/errors.d.ts"
+    },
+    "./providers/registry": {
+      "import": "./dist/providers/registry.js",
+      "types": "./dist/providers/registry.d.ts"
+    },
+    "./providers/types": {
+      "import": "./dist/providers/types.js",
+      "types": "./dist/providers/types.d.ts"
+    },
+    "./schemas.js": {
+      "import": "./dist/schemas.js",
+      "types": "./dist/schemas.d.ts"
+    },
+    "./errors.js": {
+      "import": "./dist/errors.js",
+      "types": "./dist/errors.d.ts"
+    },
+    "./providers/registry.js": {
+      "import": "./dist/providers/registry.js",
+      "types": "./dist/providers/registry.d.ts"
+    },
+    "./providers/types.js": {
+      "import": "./dist/providers/types.js",
+      "types": "./dist/providers/types.d.ts"
+    }
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "zod": "^3.23.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.5.0"
+  }
+}
