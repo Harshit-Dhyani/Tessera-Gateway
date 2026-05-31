@@ -1,0 +1,48 @@
+name: Provider breakage
+description: Report a provider UI, login, prompt submission, or response capture breakage.
+title: "[Provider]: "
+labels:
+  - provider-breakage
+  - bug
+body:
+  - type: dropdown
+    id: provider
+    attributes:
+      label: Provider
+      options:
+        - ChatGPT
+        - Claude
+        - Gemini
+        - Perplexity
+    validations:
+      required: true
+  - type: dropdown
+    id: failure_code
+    attributes:
+      label: Observed failure code
+      options:
+        - PROVIDER_NOT_AUTHENTICATED
+        - PROVIDER_NOT_READY
+        - PROVIDER_TIMEOUT
+        - PROVIDER_UI_CHANGED
+        - PROVIDER_CAPTURE_FAILED
+        - RUNTIME_ERROR
+        - Other
+  - type: textarea
+    id: state
+    attributes:
+      label: Provider page state
+      description: Describe what the visible provider pane showed.
+      placeholder: Login page, signup layer, disabled send button, answer visible but not captured, etc.
+    validations:
+      required: true
+  - type: textarea
+    id: smoke
+    attributes:
+      label: Smoke command and output
+      placeholder: bun run apps/mcp/mcp-send-prompt-full.ts gemini
+  - type: textarea
+    id: notes
+    attributes:
+      label: Notes
+      description: Do not paste cookies, tokens, credentials, or sensitive prompt contents.

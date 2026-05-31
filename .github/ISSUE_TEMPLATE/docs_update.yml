@@ -1,0 +1,22 @@
+name: Documentation update
+description: Request or track documentation changes.
+title: "[Docs]: "
+labels:
+  - documentation
+body:
+  - type: textarea
+    id: docs
+    attributes:
+      label: What needs updating?
+      description: Link the doc or section if known.
+    validations:
+      required: true
+  - type: textarea
+    id: current
+    attributes:
+      label: Current problem
+      description: What is stale, confusing, or missing?
+  - type: textarea
+    id: proposed
+    attributes:
+      label: Proposed content or source of truth

@@ -1,0 +1,51 @@
+name: Bug report
+description: Report a Tessera Gateway bug or regression.
+title: "[Bug]: "
+labels:
+  - bug
+body:
+  - type: textarea
+    id: summary
+    attributes:
+      label: Summary
+      description: What broke?
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Reproduction steps
+      description: Include commands, provider, layout mode, and exact route/tool if possible.
+      placeholder: |
+        1. Run bun run dev:desktop
+        2. Open provider ...
+        3. Call MCP tool ...
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+      description: Include normalized error code if one was returned.
+    validations:
+      required: true
+  - type: textarea
+    id: verification
+    attributes:
+      label: Verification attempted
+      placeholder: |
+        bun run lint
+        bun run typecheck
+        bun run test
+        bun run build
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs or screenshots
+      description: Do not paste cookies, tokens, credentials, or full sensitive prompts.

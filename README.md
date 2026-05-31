@@ -219,3 +219,4 @@ docs             Architecture, provider, security, and MCP docs
 - [Architecture](docs/architecture.md)
 - [MCP Client Configuration](docs/mcp-client-config.md)
 - [Security](docs/security.md)
+- [Git and GitHub Workflow](docs/git-workflow.md)
