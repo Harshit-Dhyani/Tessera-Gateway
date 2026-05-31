@@ -17,8 +17,33 @@ import {
   setLayout,
 } from '@tessera-gateway/runtime';
 
-const logger = createLogger({ name: 'mcp' });
+const logger = createLogger({ name: 'mcp', stderr: true });
 const providerIds = Object.keys(providerRegistry);
+
+function readProviderId(args: Record<string, unknown>): string | null {
+  const providerId = args.providerId;
+  if (typeof providerId !== 'string') return null;
+  const normalized = providerId.trim().toLowerCase();
+  return providerIds.includes(normalized) ? normalized : null;
+}
+
+function readProviderIds(args: Record<string, unknown>): string[] {
+  const ids = args.providerIds;
+  if (!Array.isArray(ids)) return [];
+  return [
+    ...new Set(
+      ids
+        .filter((id): id is string => typeof id === 'string' && id.trim().length > 0)
+        .map((id) => id.trim().toLowerCase())
+        .filter((id) => providerIds.includes(id)),
+    ),
+  ];
+}
+
+function readLayout(args: Record<string, unknown>): 'single' | 'split' | 'grid' | null {
+  const layout = args.layout;
+  return layout === 'single' || layout === 'split' || layout === 'grid' ? layout : null;
+}
 
 const server = new Server(
   {
@@ -209,9 +234,9 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       }
 
       case 'get_provider_state': {
-        const providerId = args?.providerId as string;
+        const providerId = readProviderId(toolArgs);
         if (!providerId) {
-          return errorResult('providerId is required', 'VALIDATION_ERROR');
+          return errorResult('providerId must be a supported provider', 'VALIDATION_ERROR');
         }
         const state = await getProviderState(providerId);
         return {
@@ -225,9 +250,9 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       }
 
       case 'open_provider': {
-        const providerId = args?.providerId as string;
+        const providerId = readProviderId(toolArgs);
         if (!providerId) {
-          return errorResult('providerId is required', 'VALIDATION_ERROR');
+          return errorResult('providerId must be a supported provider', 'VALIDATION_ERROR');
         }
         const result = await openProvider(providerId);
         return {
@@ -241,9 +266,9 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       }
 
       case 'close_provider': {
-        const providerId = args?.providerId as string;
+        const providerId = readProviderId(toolArgs);
         if (!providerId) {
-          return errorResult('providerId is required', 'VALIDATION_ERROR');
+          return errorResult('providerId must be a supported provider', 'VALIDATION_ERROR');
         }
         const result = await closeProvider(providerId);
         return {
@@ -257,9 +282,9 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       }
 
       case 'focus_provider': {
-        const providerId = args?.providerId as string;
+        const providerId = readProviderId(toolArgs);
         if (!providerId) {
-          return errorResult('providerId is required', 'VALIDATION_ERROR');
+          return errorResult('providerId must be a supported provider', 'VALIDATION_ERROR');
         }
         const result = await focusProvider(providerId);
         return {
@@ -273,9 +298,9 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       }
 
       case 'set_layout': {
-        const layout = args?.layout as 'single' | 'split' | 'grid';
+        const layout = readLayout(toolArgs);
         if (!layout) {
-          return errorResult('layout is required', 'VALIDATION_ERROR');
+          return errorResult('layout must be single, split, or grid', 'VALIDATION_ERROR');
         }
         const result = await setLayout(layout);
         return {
@@ -289,9 +314,9 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       }
 
       case 'open_parallel_providers': {
-        const providerIds = args?.providerIds as string[];
-        if (!providerIds || !Array.isArray(providerIds)) {
-          return errorResult('providerIds array is required', 'VALIDATION_ERROR');
+        const providerIds = readProviderIds(toolArgs);
+        if (providerIds.length === 0) {
+          return errorResult('providerIds must include at least one supported provider', 'VALIDATION_ERROR');
         }
         const result = await openParallelProviders(providerIds);
         return {
@@ -305,14 +330,14 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       }
 
       case 'send_prompt': {
-        const providerId = args?.providerId as string;
-        const prompt = args?.prompt as string;
-        const systemPrompt = args?.systemPrompt as string | undefined;
+        const providerId = readProviderId(toolArgs);
+        const prompt = toolArgs.prompt;
+        const systemPrompt = typeof toolArgs.systemPrompt === 'string' ? toolArgs.systemPrompt : undefined;
 
         if (!providerId) {
-          return errorResult('providerId is required', 'VALIDATION_ERROR');
+          return errorResult('providerId must be a supported provider', 'VALIDATION_ERROR');
         }
-        if (!prompt) {
+        if (typeof prompt !== 'string' || !prompt.trim()) {
           return errorResult('prompt is required', 'VALIDATION_ERROR');
         }
 
@@ -328,9 +353,9 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       }
 
       case 'reset_provider_session': {
-        const providerId = args?.providerId as string;
+        const providerId = readProviderId(toolArgs);
         if (!providerId) {
-          return errorResult('providerId is required', 'VALIDATION_ERROR');
+          return errorResult('providerId must be a supported provider', 'VALIDATION_ERROR');
         }
         const result = await resetProviderSession(providerId);
         return {

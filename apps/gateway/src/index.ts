@@ -3,6 +3,7 @@ import { chatRequestSchema, providerRegistry } from '@tessera-gateway/core';
 import { createLogger } from '@tessera-gateway/observability/logger.js';
 import { checkDesktopAvailable, getRuntimeState, listProviders, sendPrompt } from '@tessera-gateway/runtime';
 import Fastify from 'fastify';
+import { ZodError } from 'zod';
 
 const logger = createLogger({ name: 'gateway' });
 
@@ -10,9 +11,49 @@ const fastify = Fastify({
   logger,
 });
 
+const allowedCorsOrigins = new Set(['http://localhost:5173', 'http://127.0.0.1:5173']);
+
 await fastify.register(cors, {
-  origin: 'http://localhost:3000',
+  origin: (origin, callback) => {
+    if (!origin || allowedCorsOrigins.has(origin)) {
+      callback(null, true);
+      return;
+    }
+    callback(new Error('Origin is not allowed'), false);
+  },
   methods: ['GET', 'POST'],
+});
+
+fastify.setErrorHandler((error, _request, reply) => {
+  if (error instanceof ZodError) {
+    return reply.code(400).send({
+      error: {
+        code: 'VALIDATION_ERROR',
+        message: 'Request body failed validation',
+        details: error.issues.map((issue) => ({
+          path: issue.path.join('.'),
+          message: issue.message,
+        })),
+      },
+    });
+  }
+
+  if (error.message === 'Origin is not allowed') {
+    return reply.code(403).send({
+      error: {
+        code: 'VALIDATION_ERROR',
+        message: 'Origin is not allowed',
+      },
+    });
+  }
+
+  fastify.log.error(error);
+  return reply.code(500).send({
+    error: {
+      code: 'RUNTIME_ERROR',
+      message: 'Gateway request failed',
+    },
+  });
 });
 
 function extractPrompt(messages: { role: 'system' | 'user' | 'assistant'; content: string }[]): {

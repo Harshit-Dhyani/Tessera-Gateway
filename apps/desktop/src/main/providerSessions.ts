@@ -22,12 +22,33 @@ const APPROVED_PROVIDER_URLS: Record<string, string> = Object.fromEntries(
   Object.values(providerRegistry).map((provider) => [provider.id, provider.browserUrl]),
 );
 
+const EXTRA_APPROVED_ORIGINS_BY_PROVIDER: Record<string, string[]> = {
+  chatgpt: ['https://chatgpt.com'],
+};
+
+const APPROVED_PROVIDER_ORIGINS: Record<string, string[]> = Object.fromEntries(
+  Object.entries(APPROVED_PROVIDER_URLS).map(([providerId, browserUrl]) => {
+    const origin = getOrigin(browserUrl);
+    return [providerId, [...(origin ? [origin] : []), ...(EXTRA_APPROVED_ORIGINS_BY_PROVIDER[providerId] ?? [])]];
+  }),
+);
+
+function getOrigin(url: string): string | null {
+  try {
+    return new URL(url).origin;
+  } catch {
+    return null;
+  }
+}
+
 export function getApprovedUrls(): string[] {
-  return Object.values(APPROVED_PROVIDER_URLS);
+  return Object.values(APPROVED_PROVIDER_ORIGINS).flat();
 }
 
 export function isApprovedUrl(url: string): boolean {
-  return getApprovedUrls().some((approved) => url.startsWith(approved));
+  const origin = getOrigin(url);
+  if (!origin) return false;
+  return Object.values(APPROVED_PROVIDER_ORIGINS).some((origins) => origins.includes(origin));
 }
 
 export function getUrlForProvider(providerId: string): string | null {
@@ -35,8 +56,11 @@ export function getUrlForProvider(providerId: string): string | null {
 }
 
 export function getProviderIdFromUrl(url: string): string | null {
-  for (const [id, approvedUrl] of Object.entries(APPROVED_PROVIDER_URLS)) {
-    if (url.startsWith(approvedUrl)) {
+  const origin = getOrigin(url);
+  if (!origin) return null;
+
+  for (const [id, approvedOrigins] of Object.entries(APPROVED_PROVIDER_ORIGINS)) {
+    if (approvedOrigins.includes(origin)) {
       return id;
     }
   }

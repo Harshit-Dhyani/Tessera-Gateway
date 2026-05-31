@@ -1,5 +1,6 @@
 import http from 'http';
 import { join } from 'path';
+import { providerRegistry } from '@tessera-gateway/core';
 import type { NormalizedResponse } from '@tessera-gateway/core';
 import { BrowserWindow, app, ipcMain } from 'electron';
 import { type LayoutMode, getProviderLayoutManager } from './providerLayout.js';
@@ -44,7 +45,23 @@ function appendRuntimeLog(entry: Omit<(typeof runtimeLogs)[number], 'id' | 'time
 function readProviderId(body: unknown): string | null {
   if (!body || typeof body !== 'object') return null;
   const providerId = (body as { providerId?: unknown }).providerId;
-  return typeof providerId === 'string' && providerId.trim() ? providerId.trim() : null;
+  const normalized = typeof providerId === 'string' ? providerId.trim().toLowerCase() : '';
+  return normalized && providerRegistry[normalized] ? normalized : null;
+}
+
+function readProviderIds(body: unknown): string[] {
+  if (!body || typeof body !== 'object') return [];
+  const providerIds = (body as { providerIds?: unknown }).providerIds;
+  if (!Array.isArray(providerIds)) return [];
+
+  return [
+    ...new Set(
+      providerIds
+        .filter((id): id is string => typeof id === 'string' && id.trim().length > 0)
+        .map((id) => id.trim().toLowerCase())
+        .filter((id) => Boolean(providerRegistry[id])),
+    ),
+  ];
 }
 
 function readLayout(body: unknown): LayoutMode | null {
@@ -105,7 +122,9 @@ const runtimeServer = http.createServer(async (req, res) => {
       const providerId = readProviderId(body);
       if (!providerId) {
         res.writeHead(400);
-        res.end(JSON.stringify({ error: 'providerId is required' }));
+        res.end(
+          JSON.stringify({ error: { code: 'VALIDATION_ERROR', message: 'providerId must be a supported provider' } }),
+        );
         return;
       }
       const state = await viewManager.openProviderView(providerId);
@@ -127,7 +146,9 @@ const runtimeServer = http.createServer(async (req, res) => {
       const providerId = readProviderId(body);
       if (!providerId) {
         res.writeHead(400);
-        res.end(JSON.stringify({ error: 'providerId is required' }));
+        res.end(
+          JSON.stringify({ error: { code: 'VALIDATION_ERROR', message: 'providerId must be a supported provider' } }),
+        );
         return;
       }
       await viewManager.closeProviderView(providerId);
@@ -143,7 +164,9 @@ const runtimeServer = http.createServer(async (req, res) => {
       const providerId = readProviderId(body);
       if (!providerId) {
         res.writeHead(400);
-        res.end(JSON.stringify({ error: 'providerId is required' }));
+        res.end(
+          JSON.stringify({ error: { code: 'VALIDATION_ERROR', message: 'providerId must be a supported provider' } }),
+        );
         return;
       }
       await viewManager.focusProviderView(providerId);
@@ -164,25 +187,30 @@ const runtimeServer = http.createServer(async (req, res) => {
     if (path === '/runtime/providers/sendPrompt' && method === 'POST') {
       const body = (await parseBody(req)) as { providerId?: string; prompt?: string; systemPrompt?: string };
       const requestId = `req_${Date.now()}`;
+      const providerId = readProviderId(body);
 
-      if (!body.providerId || !body.prompt) {
+      if (!providerId || !body.prompt) {
         res.writeHead(400);
-        res.end(JSON.stringify({ error: 'providerId and prompt are required' }));
+        res.end(
+          JSON.stringify({
+            error: { code: 'VALIDATION_ERROR', message: 'supported providerId and prompt are required' },
+          }),
+        );
         return;
       }
 
       const startTime = Date.now();
       if (DEBUG)
         console.log(
-          `[Runtime] ${requestId} sendPrompt start: provider=${body.providerId}, promptLength=${body.prompt.length}`,
+          `[Runtime] ${requestId} sendPrompt start: provider=${providerId}, promptLength=${body.prompt.length}`,
         );
 
-      const result = (await viewManager.sendPrompt(body.providerId, body.prompt)) as NormalizedResponse;
+      const result = (await viewManager.sendPrompt(providerId, body.prompt)) as NormalizedResponse;
 
       const latencyMs = Date.now() - startTime;
       appendRuntimeLog({
         provider: result.providerId,
-        modelAlias: body.providerId,
+        modelAlias: providerId,
         latencyMs,
         result: result.ok ? 'success' : 'error',
         errorCode: result.error?.code,
@@ -207,7 +235,9 @@ const runtimeServer = http.createServer(async (req, res) => {
       const providerId = readProviderId(body);
       if (!providerId) {
         res.writeHead(400);
-        res.end(JSON.stringify({ error: 'providerId is required' }));
+        res.end(
+          JSON.stringify({ error: { code: 'VALIDATION_ERROR', message: 'providerId must be a supported provider' } }),
+        );
         return;
       }
       await viewManager.resetSession(providerId);
@@ -218,16 +248,18 @@ const runtimeServer = http.createServer(async (req, res) => {
 
     // Open parallel providers
     if (path === '/runtime/providers/openParallel' && method === 'POST') {
-      const body = (await parseBody(req)) as { providerIds?: unknown };
-      const providerIds = Array.isArray(body.providerIds)
-        ? body.providerIds.filter((id): id is string => typeof id === 'string' && id.trim().length > 0)
-        : [];
+      const body = await parseBody(req);
+      const providerIds = readProviderIds(body);
       if (providerIds.length === 0) {
         res.writeHead(400);
-        res.end(JSON.stringify({ error: 'providerIds must be a non-empty array' }));
+        res.end(
+          JSON.stringify({
+            error: { code: 'VALIDATION_ERROR', message: 'providerIds must include at least one supported provider' },
+          }),
+        );
         return;
       }
-      const openIds = [...new Set(providerIds)];
+      const openIds = providerIds;
       await Promise.all(openIds.map((id) => viewManager.openProviderView(id)));
 
       const layout = openIds.length === 1 ? 'single' : openIds.length === 2 ? 'split' : 'grid';
@@ -346,6 +378,15 @@ async function parseBody(req: http.IncomingMessage): Promise<Record<string, unkn
 }
 
 function startRuntimeServer(): void {
+  runtimeServer.on('error', (error: NodeJS.ErrnoException) => {
+    if (error.code === 'EADDRINUSE') {
+      console.error(`[Desktop] Runtime server port ${RUNTIME_PORT} is already in use`);
+      return;
+    }
+
+    console.error('[Desktop] Runtime server failed:', error);
+  });
+
   runtimeServer.listen(RUNTIME_PORT, '127.0.0.1', () => {
     console.log(`[Desktop] Runtime server started on http://127.0.0.1:${RUNTIME_PORT}`);
   });

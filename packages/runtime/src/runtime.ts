@@ -26,6 +26,7 @@ import type {
 
 const RUNTIME_PORT = 7870;
 const RUNTIME_URL = `http://127.0.0.1:${RUNTIME_PORT}`;
+const RUNTIME_FETCH_TIMEOUT_MS = 5000;
 
 interface RuntimeHttpClient {
   get<T>(path: string): Promise<T>;
@@ -33,16 +34,30 @@ interface RuntimeHttpClient {
 }
 
 function createHttpClient(): RuntimeHttpClient {
+  async function fetchWithTimeout(path: string, init?: RequestInit): Promise<Response> {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), RUNTIME_FETCH_TIMEOUT_MS);
+
+    try {
+      return await fetch(`${RUNTIME_URL}${path}`, {
+        ...init,
+        signal: controller.signal,
+      });
+    } finally {
+      clearTimeout(timeout);
+    }
+  }
+
   return {
     async get<T>(path: string): Promise<T> {
-      const response = await fetch(`${RUNTIME_URL}${path}`);
+      const response = await fetchWithTimeout(path);
       if (!response.ok) {
         throw new Error(`HTTP ${response.status}: ${response.statusText}`);
       }
       return response.json() as Promise<T>;
     },
     async post<T>(path: string, body?: unknown): Promise<T> {
-      const response = await fetch(`${RUNTIME_URL}${path}`, {
+      const response = await fetchWithTimeout(path, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: body ? JSON.stringify(body) : undefined,
@@ -111,11 +126,16 @@ function resolveRuntimeProviderId(input: string): string | null {
 }
 
 export async function checkDesktopAvailable(): Promise<boolean> {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), RUNTIME_FETCH_TIMEOUT_MS);
+
   try {
-    const response = await fetch(`${RUNTIME_URL}/health`, { method: 'GET' });
+    const response = await fetch(`${RUNTIME_URL}/health`, { method: 'GET', signal: controller.signal });
     return response.ok;
   } catch {
     return false;
+  } finally {
+    clearTimeout(timeout);
   }
 }
 

@@ -787,6 +787,9 @@ Every stubbed provider adapter and scaffolded runtime path must return a normali
 - Provider BrowserView opening must be non-blocking: create/register/mount/layout the view before remote `loadURL` work, and guard duplicate opens while a provider is still loading
 - Single-provider layout must follow the focused provider, not the first provider that happened to open
 - Dev startup must reuse an already healthy loopback gateway instead of crashing on an occupied canonical port
+- Provider URL approval must compare parsed URL origins, never raw string prefixes
+- MCP stdio servers must keep protocol output on stdout and send logs to stderr only
+- Desktop runtime server startup must handle loopback port conflicts explicitly instead of crashing the app process
 
 ### Stub Testing Requirements
 

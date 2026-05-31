@@ -3,7 +3,7 @@ import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import { CallToolRequestSchema, ListToolsRequestSchema } from '@modelcontextprotocol/sdk/types.js';
 import { createLogger } from '@tessera-gateway/observability/logger.js';
 
-const logger = createLogger({ name: 'mcp-test' });
+const logger = createLogger({ name: 'mcp-test', stderr: true });
 
 const server = new Server({ name: 'tessera-gateway', version: '0.1.0' }, { capabilities: { tools: {} } });
 
