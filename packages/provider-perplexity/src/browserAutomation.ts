@@ -30,13 +30,28 @@ export function createPerplexityPromptScript(prompt: string, timeoutMs = 120000)
 
   const pageNeedsLogin = () => {
     const pageText = document.body?.innerText?.toLowerCase() || '';
-    return pageText.includes('sign in') && pageText.includes('continue with');
+    return (
+      (pageText.includes('sign in') || pageText.includes('sign up')) &&
+      (pageText.includes('continue with') || pageText.includes('unlock the full potential'))
+    );
+  };
+
+  const clickBackHomeFromSignup = () => {
+    const candidates = Array.from(document.querySelectorAll('button, a')).filter(visible);
+    const backHome = candidates.find((element) => textOf(element).toLowerCase().includes('back home'));
+    if (backHome) {
+      backHome.click();
+      return true;
+    }
+    return false;
   };
 
   const findComposer = () => {
     const candidates = [
       'textarea[placeholder*="Ask"]',
       'textarea[aria-label*="Ask"]',
+      'textarea[placeholder*="follow-up" i]',
+      'textarea[aria-label*="follow-up" i]',
       'textarea',
       'div[contenteditable="true"][aria-label*="Ask"]',
       'div[contenteditable="true"]',
@@ -51,9 +66,10 @@ export function createPerplexityPromptScript(prompt: string, timeoutMs = 120000)
 
   const findSendButton = () => {
     const candidates = [
-      'button[aria-label*="Submit"]',
-      'button[aria-label*="Send"]',
-      'button[data-testid*="submit"]',
+      'button[aria-label*="Submit" i]',
+      'button[aria-label*="Send" i]',
+      'button[data-testid*="submit" i]',
+      'button[data-test-id*="submit" i]',
       'button[type="submit"]',
     ];
 
@@ -63,7 +79,38 @@ export function createPerplexityPromptScript(prompt: string, timeoutMs = 120000)
       });
       if (element) return element;
     }
+
+    const composer = findComposer();
+    const form = composer?.closest?.('form');
+    const formButtons = form
+      ? Array.from(form.querySelectorAll('button')).filter((candidate) => {
+          return visible(candidate) && !candidate.disabled && candidate.getAttribute('aria-disabled') !== 'true';
+        })
+      : [];
+    if (formButtons.length > 0) return formButtons.at(-1);
+
+    const labeledButton = Array.from(document.querySelectorAll('button')).find((candidate) => {
+      if (!visible(candidate) || candidate.disabled || candidate.getAttribute('aria-disabled') === 'true') return false;
+      const label = [
+        candidate.getAttribute('aria-label'),
+        candidate.getAttribute('title'),
+        candidate.getAttribute('data-testid'),
+        candidate.getAttribute('data-test-id'),
+        candidate.textContent,
+      ]
+        .filter(Boolean)
+        .join(' ')
+        .toLowerCase();
+      return label.includes('send') || label.includes('submit');
+    });
+    if (labeledButton) return labeledButton;
+
     return null;
+  };
+
+  const composerText = (composer) => {
+    if ('value' in composer) return composer.value.trim();
+    return textOf(composer);
   };
 
   const responseMessages = () => {
@@ -72,7 +119,6 @@ export function createPerplexityPromptScript(prompt: string, timeoutMs = 120000)
       '[data-testid*="thread"] article',
       '.prose',
       'article',
-      'main',
     ];
     const seen = new Set();
     const messages = [];
@@ -81,7 +127,13 @@ export function createPerplexityPromptScript(prompt: string, timeoutMs = 120000)
         if (seen.has(element)) continue;
         seen.add(element);
         const text = textOf(element);
-        if (text && text !== prompt && !text.toLowerCase().includes('related')) {
+        const normalized = text.toLowerCase();
+        const looksLikeShell =
+          normalized.includes('search anything') ||
+          normalized.includes('discover\\nfinance') ||
+          normalized.includes('get fast and accurate answers');
+        const promptEchoCount = text.split(prompt).length - 1;
+        if (text && text !== prompt && promptEchoCount === 0 && !normalized.includes('related') && !looksLikeShell) {
           messages.push(text);
         }
       }
@@ -91,9 +143,12 @@ export function createPerplexityPromptScript(prompt: string, timeoutMs = 120000)
   };
 
   const setComposerText = (composer) => {
+    composer.scrollIntoView({ block: 'center', inline: 'nearest' });
+    composer.click();
     composer.focus();
     if ('value' in composer) {
       composer.value = prompt;
+      composer.dispatchEvent(new InputEvent('beforeinput', { inputType: 'insertText', data: prompt, bubbles: true }));
       composer.dispatchEvent(new InputEvent('input', { inputType: 'insertText', data: prompt, bubbles: true }));
       composer.dispatchEvent(new Event('change', { bubbles: true }));
       return;
@@ -106,11 +161,35 @@ export function createPerplexityPromptScript(prompt: string, timeoutMs = 120000)
     range.collapse(false);
     selection.removeAllRanges();
     selection.addRange(range);
+    composer.dispatchEvent(new InputEvent('beforeinput', { inputType: 'insertText', data: prompt, bubbles: true }));
     document.execCommand('insertText', false, prompt);
     composer.dispatchEvent(new InputEvent('input', { inputType: 'insertText', data: prompt, bubbles: true }));
+    composer.dispatchEvent(new Event('change', { bubbles: true }));
+  };
+
+  const pressEnterToSubmit = (composer) => {
+    composer.focus();
+    const form = composer.closest?.('form');
+    if (form?.requestSubmit) {
+      form.requestSubmit();
+      return;
+    }
+    composer.dispatchEvent(
+      new KeyboardEvent('keydown', { key: 'Enter', code: 'Enter', bubbles: true, cancelable: true }),
+    );
+    composer.dispatchEvent(new KeyboardEvent('keyup', { key: 'Enter', code: 'Enter', bubbles: true, cancelable: true }));
+  };
+
+  const promptWasSubmitted = (composer) => {
+    const currentComposerText = composerText(composer);
+    return currentComposerText.length === 0 || !currentComposerText.includes(prompt);
   };
 
   return (async () => {
+    if (pageNeedsLogin() && clickBackHomeFromSignup()) {
+      await sleep(1000);
+    }
+
     const composer = findComposer();
     if (!composer) {
       return result({
@@ -136,17 +215,28 @@ export function createPerplexityPromptScript(prompt: string, timeoutMs = 120000)
       sendButton = findSendButton();
     }
 
-    if (!sendButton) {
+    let submitMethod = 'send_button_click';
+    if (sendButton) {
+      sendButton.click();
+    } else {
+      submitMethod = 'keyboard_enter_fallback';
+      pressEnterToSubmit(composer);
+    }
+
+    await sleep(750);
+    if (!promptWasSubmitted(composer)) {
       return result({
         ok: false,
         text: '',
-        errorCode: ${escapeScriptValue(ErrorCodes.PROVIDER_NOT_READY)},
-        errorMessage: 'Perplexity send button was not ready.',
-        captureMethod: 'send_button_lookup',
+        errorCode: pageNeedsLogin()
+          ? ${escapeScriptValue(ErrorCodes.PROVIDER_NOT_AUTHENTICATED)}
+          : ${escapeScriptValue(ErrorCodes.PROVIDER_NOT_READY)},
+        errorMessage: pageNeedsLogin()
+          ? 'Perplexity is showing a signup or login layer before prompt execution.'
+          : 'Perplexity did not accept the prompt from the composer.',
+        captureMethod: 'prompt_submission_check:' + submitMethod,
       });
     }
-
-    sendButton.click();
 
     let lastText = '';
     let stableSince = 0;
@@ -168,7 +258,7 @@ export function createPerplexityPromptScript(prompt: string, timeoutMs = 120000)
         return result({
           ok: true,
           text: candidate,
-          captureMethod: 'perplexity_response_stable_text',
+          captureMethod: 'perplexity_response_stable_text:' + submitMethod,
         });
       }
     }
@@ -178,7 +268,7 @@ export function createPerplexityPromptScript(prompt: string, timeoutMs = 120000)
       text: lastText,
       errorCode: ${escapeScriptValue(ErrorCodes.PROVIDER_TIMEOUT)},
       errorMessage: 'Timed out waiting for a stable Perplexity response.',
-      captureMethod: 'perplexity_response_stable_text',
+      captureMethod: 'perplexity_response_stable_text:' + submitMethod,
     });
   })();
 })()

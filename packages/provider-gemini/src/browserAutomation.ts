@@ -36,9 +36,14 @@ export function createGeminiPromptScript(prompt: string, timeoutMs = 120000): st
   const findComposer = () => {
     const candidates = [
       'rich-textarea div[contenteditable="true"]',
+      'rich-textarea [contenteditable="true"]',
+      'div[aria-label*="Ask Gemini" i]',
+      '[data-placeholder*="Ask Gemini" i]',
       'div[contenteditable="true"][aria-label*="Enter"]',
       'div[contenteditable="true"][aria-label*="prompt"]',
       'div[contenteditable="true"]',
+      'rich-textarea textarea',
+      'textarea[placeholder*="Ask Gemini" i]',
       'textarea[aria-label*="Enter"]',
       'textarea',
     ];
@@ -52,11 +57,13 @@ export function createGeminiPromptScript(prompt: string, timeoutMs = 120000): st
 
   const findSendButton = () => {
     const candidates = [
+      'button[aria-label*="Send message" i]',
       'button[aria-label*="Send" i]',
       'button[aria-label*="Submit" i]',
       'button[aria-label*="send" i]',
       'button[data-test-id*="send" i]',
       'button[data-testid*="send"]',
+      'button[mattooltip*="Send" i]',
       'button.send-button',
       'button[type="submit"]',
     ];
@@ -67,7 +74,29 @@ export function createGeminiPromptScript(prompt: string, timeoutMs = 120000): st
       });
       if (element) return element;
     }
+
+    const labeledButton = Array.from(document.querySelectorAll('button')).find((candidate) => {
+      if (!visible(candidate) || candidate.disabled || candidate.getAttribute('aria-disabled') === 'true') return false;
+      const label = [
+        candidate.getAttribute('aria-label'),
+        candidate.getAttribute('title'),
+        candidate.getAttribute('data-testid'),
+        candidate.getAttribute('data-test-id'),
+        candidate.textContent,
+      ]
+        .filter(Boolean)
+        .join(' ')
+        .toLowerCase();
+      return label.includes('send') || label.includes('submit');
+    });
+    if (labeledButton) return labeledButton;
+
     return null;
+  };
+
+  const composerText = (composer) => {
+    if ('value' in composer) return composer.value.trim();
+    return textOf(composer);
   };
 
   const responseMessages = () => {
@@ -96,9 +125,12 @@ export function createGeminiPromptScript(prompt: string, timeoutMs = 120000): st
   };
 
   const setComposerText = (composer) => {
+    composer.scrollIntoView({ block: 'center', inline: 'nearest' });
+    composer.click();
     composer.focus();
     if ('value' in composer) {
       composer.value = prompt;
+      composer.dispatchEvent(new InputEvent('beforeinput', { inputType: 'insertText', data: prompt, bubbles: true }));
       composer.dispatchEvent(new InputEvent('input', { inputType: 'insertText', data: prompt, bubbles: true }));
       composer.dispatchEvent(new Event('change', { bubbles: true }));
       return;
@@ -111,8 +143,10 @@ export function createGeminiPromptScript(prompt: string, timeoutMs = 120000): st
     range.collapse(false);
     selection.removeAllRanges();
     selection.addRange(range);
+    composer.dispatchEvent(new InputEvent('beforeinput', { inputType: 'insertText', data: prompt, bubbles: true }));
     document.execCommand('insertText', false, prompt);
     composer.dispatchEvent(new InputEvent('input', { inputType: 'insertText', data: prompt, bubbles: true }));
+    composer.dispatchEvent(new Event('change', { bubbles: true }));
   };
 
   const pressEnterToSubmit = (composer) => {
@@ -131,6 +165,12 @@ export function createGeminiPromptScript(prompt: string, timeoutMs = 120000): st
     });
     composer.dispatchEvent(keydown);
     composer.dispatchEvent(keyup);
+  };
+
+  const promptWasSubmitted = (composer) => {
+    const currentComposerText = composerText(composer);
+    const pageText = document.body?.innerText || '';
+    return currentComposerText.length === 0 || !currentComposerText.includes(prompt) || pageText.includes(prompt);
   };
 
   return (async () => {
@@ -165,6 +205,17 @@ export function createGeminiPromptScript(prompt: string, timeoutMs = 120000): st
     } else {
       submitMethod = 'keyboard_enter_fallback';
       pressEnterToSubmit(composer);
+    }
+
+    await sleep(750);
+    if (!promptWasSubmitted(composer)) {
+      return result({
+        ok: false,
+        text: '',
+        errorCode: ${escapeScriptValue(ErrorCodes.PROVIDER_NOT_READY)},
+        errorMessage: 'Gemini did not accept the prompt from the composer.',
+        captureMethod: 'prompt_submission_check:' + submitMethod,
+      });
     }
 
     let lastText = '';
