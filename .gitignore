@@ -16,6 +16,7 @@ build/
 # Database
 *.db
 *.sqlite
+/data/
 
 # Logs
 *.log
@@ -38,6 +39,7 @@ Thumbs.db
 
 # Test coverage
 coverage/
+test-results/
 
 # Profiles (browser)
 profiles/

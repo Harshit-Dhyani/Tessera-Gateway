@@ -51,9 +51,9 @@ For provider behavior changes, also run at least one targeted live smoke when po
 
 ```bash
 bun run dev:desktop
-bun run apps/mcp/mcp-send-prompt-full.ts gemini
-bun run apps/mcp/mcp-send-prompt-full.ts perplexity
-bun run apps/mcp/mcp-send-prompt-full.ts claude
+bun run mcp:gemini "Say hi in one short sentence."
+bun run mcp:perplexity "Say hi in one short sentence."
+bun run mcp:claude "Say hi in one short sentence."
 ```
 
 Live smoke tests require the desktop runtime bridge at:
