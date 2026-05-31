@@ -39,6 +39,7 @@ async function test() {
 
   try {
     const providerId = process.argv[2] || 'perplexity';
+    const prompt = process.argv.slice(3).join(' ').trim() || 'Say hi in one short sentence.';
 
     // 1. Open provider
     console.log(`1. Opening ${providerId}...`);
@@ -64,9 +65,10 @@ async function test() {
     // 3. Send prompt if ready
     if (stateJson.state?.isMounted && stateJson.state?.loadState === 'ready') {
       console.log(`3. Sending prompt to ${providerId}...`);
+      console.log('   prompt:', prompt);
       const promptRes = await send('tools/call', {
         name: 'send_prompt',
-        arguments: { providerId, prompt: 'Say hi in one short sentence.' },
+        arguments: { providerId, prompt },
       });
       const promptJson = JSON.parse(promptRes.result.content[0].text);
       console.log('   ok:', promptJson.ok);

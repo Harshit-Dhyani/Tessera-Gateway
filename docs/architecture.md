@@ -226,9 +226,9 @@ Live MCP smoke verification:
 
 ```bash
 bun run dev:desktop
-bun run apps/mcp/mcp-send-prompt-full.ts gemini
-bun run apps/mcp/mcp-send-prompt-full.ts perplexity
-bun run apps/mcp/mcp-send-prompt-full.ts claude
+bun run mcp:gemini "Say hi in one short sentence."
+bun run mcp:perplexity "Say hi in one short sentence."
+bun run mcp:claude "Say hi in one short sentence."
 ```
 
 The desktop runtime must remain running for live provider smoke tests. On Windows, a visible desktop launch is more reliable than launching Electron hidden because the app can exit when its window lifecycle closes.
