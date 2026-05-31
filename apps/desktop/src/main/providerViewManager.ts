@@ -4,6 +4,10 @@ import {
   createChatGptPromptScript,
 } from '@tessera-gateway/provider-chatgpt/browserAutomation';
 import {
+  type ClaudeBrowserAutomationResult,
+  createClaudePromptScript,
+} from '@tessera-gateway/provider-claude/browserAutomation';
+import {
   type GeminiBrowserAutomationResult,
   createGeminiPromptScript,
 } from '@tessera-gateway/provider-gemini/browserAutomation';
@@ -24,10 +28,11 @@ import {
 import type { WorkspaceBounds } from './providerWorkspaceBounds.js';
 
 const DEBUG = process.env.NODE_ENV === 'development';
-const BROWSER_AUTOMATION_PROVIDERS = new Set(['chatgpt', 'gemini', 'perplexity']);
+const BROWSER_AUTOMATION_PROVIDERS = new Set(['chatgpt', 'claude', 'gemini', 'perplexity']);
 
 type ProviderBrowserAutomationResult =
   | ChatGptBrowserAutomationResult
+  | ClaudeBrowserAutomationResult
   | GeminiBrowserAutomationResult
   | PerplexityBrowserAutomationResult;
 
@@ -823,6 +828,8 @@ export class ProviderViewManager {
     switch (providerId) {
       case 'chatgpt':
         return createChatGptPromptScript(prompt);
+      case 'claude':
+        return createClaudePromptScript(prompt);
       case 'gemini':
         return createGeminiPromptScript(prompt);
       case 'perplexity':

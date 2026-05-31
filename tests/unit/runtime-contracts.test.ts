@@ -171,7 +171,67 @@ describe('runtime contracts', () => {
     );
   });
 
-  it('keeps non-implemented providers behind the runtime auth gate', async () => {
+  it('lets Claude defer auth decisions to its provider page script', async () => {
+    const fetchMock = vi.fn(async (input: string) => {
+      if (input.endsWith('/health')) {
+        return jsonResponse({ status: 'ok' });
+      }
+
+      if (input.endsWith('/runtime/providers/state')) {
+        return jsonResponse([
+          {
+            providerId: 'claude',
+            allowedDomain: 'https://claude.ai',
+            currentUrl: 'https://claude.ai',
+            title: 'Claude',
+            isOpen: true,
+            isCreated: true,
+            isMounted: true,
+            isVisible: true,
+            participatesInLayout: true,
+            isActive: true,
+            isFocused: true,
+            loadState: 'ready',
+            canGoBack: false,
+            canGoForward: false,
+            isLoggedIn: false,
+            isExecuting: false,
+          },
+        ]);
+      }
+
+      if (input.endsWith('/runtime/providers/sendPrompt')) {
+        return jsonResponse({
+          ok: false,
+          providerId: 'claude',
+          model: 'claude',
+          text: '',
+          latencyMs: 42,
+          loadState: 'failed',
+          error: {
+            code: 'PROVIDER_NOT_AUTHENTICATED',
+            message: 'Claude requires manual sign-in before prompt execution.',
+            retryable: false,
+          },
+        });
+      }
+
+      return jsonResponse({}, 404);
+    });
+
+    vi.stubGlobal('fetch', fetchMock);
+
+    const response = await sendPrompt('claude', 'Hello');
+
+    expect(response.ok).toBe(false);
+    expect(response.error?.code).toBe('PROVIDER_NOT_AUTHENTICATED');
+    expect(fetchMock).toHaveBeenCalledWith(
+      'http://127.0.0.1:7870/runtime/providers/sendPrompt',
+      expect.objectContaining({ method: 'POST' }),
+    );
+  });
+
+  it('keeps unsupported providers behind the runtime readiness gate', async () => {
     vi.stubGlobal(
       'fetch',
       vi.fn(async (input: string) => {
@@ -182,10 +242,10 @@ describe('runtime contracts', () => {
         if (input.endsWith('/runtime/providers/state')) {
           return jsonResponse([
             {
-              providerId: 'claude',
-              allowedDomain: 'https://claude.ai',
-              currentUrl: 'https://claude.ai',
-              title: 'Claude',
+              providerId: 'unknown',
+              allowedDomain: 'https://example.com',
+              currentUrl: 'https://example.com',
+              title: 'Unknown',
               isOpen: true,
               isCreated: true,
               isMounted: true,
@@ -206,10 +266,10 @@ describe('runtime contracts', () => {
       }),
     );
 
-    const response = await sendPrompt('claude', 'Hello');
+    const response = await sendPrompt('unknown', 'Hello');
 
     expect(response.ok).toBe(false);
-    expect(response.error?.code).toBe('PROVIDER_NOT_AUTHENTICATED');
+    expect(response.error?.code).toBe('PROVIDER_NOT_FOUND');
   });
 
   it('reports the runtime state with truthful defaults when the bridge is down', async () => {

@@ -13,6 +13,7 @@
   "dependencies": {
     "@tessera-gateway/core": "workspace:*",
     "@tessera-gateway/provider-chatgpt": "workspace:*",
+    "@tessera-gateway/provider-claude": "workspace:*",
     "@tessera-gateway/provider-gemini": "workspace:*",
     "@tessera-gateway/provider-perplexity": "workspace:*",
     "@tessera-gateway/router": "workspace:*",

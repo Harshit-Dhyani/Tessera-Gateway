@@ -28,7 +28,7 @@ const RUNTIME_PORT = 7870;
 const RUNTIME_URL = `http://127.0.0.1:${RUNTIME_PORT}`;
 const RUNTIME_FETCH_TIMEOUT_MS = 5000;
 const RUNTIME_SEND_PROMPT_TIMEOUT_MS = 150000;
-const BROWSER_AUTOMATION_WITH_PAGE_LEVEL_AUTH_CHECK = new Set(['chatgpt', 'gemini', 'perplexity']);
+const BROWSER_AUTOMATION_WITH_PAGE_LEVEL_AUTH_CHECK = new Set(['chatgpt', 'claude', 'gemini', 'perplexity']);
 
 interface RuntimeHttpClient {
   get<T>(path: string): Promise<T>;
