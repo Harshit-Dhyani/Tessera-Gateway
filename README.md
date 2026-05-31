@@ -195,6 +195,16 @@ bun run apps/mcp/mcp-send-prompt-full.ts claude
 
 The desktop runtime must be running for these smoke tests.
 
+Short MCP prompt commands:
+
+```bash
+bun run mcp gemini "Hello, how are you?"
+bun run mcp:gemini "Hello, how are you?"
+bun run mcp:perplexity "Search for the latest AI browser automation risks."
+bun run mcp:claude "Summarize this in one sentence."
+bun run mcp:chatgpt "Write a short checklist."
+```
+
 ## Project Structure
 
 ```text
