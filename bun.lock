@@ -16,6 +16,7 @@
       "dependencies": {
         "@tessera-gateway/core": "workspace:*",
         "@tessera-gateway/observability": "workspace:*",
+        "@tessera-gateway/provider-chatgpt": "workspace:*",
         "@tessera-gateway/router": "workspace:*",
         "@tessera-gateway/storage": "workspace:*",
         "clsx": "^2.1.0",

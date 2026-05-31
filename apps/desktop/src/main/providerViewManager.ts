@@ -1,4 +1,8 @@
 import { ErrorCodes, type NormalizedResponse } from '@tessera-gateway/core';
+import {
+  type ChatGptBrowserAutomationResult,
+  createChatGptPromptScript,
+} from '@tessera-gateway/provider-chatgpt/browserAutomation';
 import { BrowserView, type BrowserWindow, type Session, session, shell } from 'electron';
 import type { LayoutMode, ProviderLayoutManager } from './providerLayout.js';
 import { getProviderIdFromUrl, getUrlForProvider, isApprovedUrl } from './providerSessions.js';
@@ -233,6 +237,15 @@ export class ProviderViewManager {
       });
 
       webContents.on('did-finish-load', () => {
+        this.stateStore.updateNavigationState(providerId, {
+          loadState: 'ready',
+          canGoBack: webContents.canGoBack(),
+          canGoForward: webContents.canGoForward(),
+        });
+        this.checkLoginState(providerId);
+      });
+
+      webContents.on('did-stop-loading', () => {
         this.stateStore.updateNavigationState(providerId, {
           loadState: 'ready',
           canGoBack: webContents.canGoBack(),
@@ -694,7 +707,7 @@ export class ProviderViewManager {
       };
     }
 
-    if (!state.isLoggedIn) {
+    if (!state.isLoggedIn && providerId !== 'chatgpt') {
       return {
         ok: false,
         providerId,
@@ -711,24 +724,66 @@ export class ProviderViewManager {
     }
 
     try {
-      if (DEBUG) console.log(`[ProviderViewManager] sendPrompt stubbed for ${providerId}`);
       this.stateStore.startExecution(providerId);
+      const startedAt = Date.now();
 
-      const latencyMs = 0;
-      this.stateStore.finishExecution(providerId, ErrorCodes.PROVIDER_NOT_IMPLEMENTED, latencyMs);
+      if (providerId !== 'chatgpt') {
+        const latencyMs = Date.now() - startedAt;
+        this.stateStore.finishExecution(providerId, ErrorCodes.PROVIDER_NOT_IMPLEMENTED, latencyMs);
+
+        return {
+          ok: false,
+          providerId,
+          model: providerId,
+          text: '',
+          latencyMs,
+          loadState: 'failed',
+          error: {
+            code: ErrorCodes.PROVIDER_NOT_IMPLEMENTED,
+            message: 'Provider automation is implemented for ChatGPT first. This provider is not implemented yet.',
+            retryable: false,
+          },
+        };
+      }
+
+      if (DEBUG) console.log(`[ProviderViewManager] sendPrompt executing ChatGPT browser automation`);
+
+      const automationResult = (await webContents.executeJavaScript(
+        createChatGptPromptScript(prompt),
+        true,
+      )) as ChatGptBrowserAutomationResult;
+
+      const latencyMs = Date.now() - startedAt;
+
+      if (!automationResult.ok) {
+        const errorCode = automationResult.errorCode ?? ErrorCodes.PROVIDER_UI_CHANGED;
+        this.stateStore.finishExecution(providerId, errorCode, latencyMs);
+
+        return {
+          ok: false,
+          providerId,
+          model: providerId,
+          text: automationResult.text,
+          latencyMs,
+          loadState: 'failed',
+          error: {
+            code: errorCode,
+            message: automationResult.errorMessage ?? 'ChatGPT browser automation failed.',
+            retryable: errorCode === ErrorCodes.PROVIDER_NOT_READY || errorCode === ErrorCodes.PROVIDER_TIMEOUT,
+          },
+        };
+      }
+
+      this.stateStore.finishExecution(providerId, undefined, latencyMs);
 
       return {
-        ok: false,
+        ok: true,
         providerId,
         model: providerId,
-        text: '',
+        text: automationResult.text,
         latencyMs,
-        loadState: 'failed',
-        error: {
-          code: ErrorCodes.PROVIDER_NOT_IMPLEMENTED,
-          message: 'Provider automation is scaffold-only in this phase.',
-          retryable: false,
-        },
+        loadState: 'ready',
+        error: null,
       };
     } catch (e) {
       if (DEBUG) console.error(`[ProviderViewManager] sendPrompt error:`, e);

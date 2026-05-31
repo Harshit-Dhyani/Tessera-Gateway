@@ -7,6 +7,21 @@ const ALLOWED_RUNTIME_ORIGINS = new Set([
   'http://127.0.0.1:7860',
 ]);
 
+function isAllowedViteDevOrigin(origin: string): boolean {
+  try {
+    const parsed = new URL(origin);
+    const port = Number.parseInt(parsed.port, 10);
+    return (
+      parsed.protocol === 'http:' &&
+      (parsed.hostname === 'localhost' || parsed.hostname === '127.0.0.1') &&
+      port >= 5173 &&
+      port <= 5199
+    );
+  } catch {
+    return false;
+  }
+}
+
 export class RuntimeBodyTooLargeError extends Error {
   constructor(readonly maxBytes: number) {
     super(`Runtime request body exceeds ${maxBytes} bytes`);
@@ -19,7 +34,7 @@ export function getAllowedRuntimeOrigin(origin: string | undefined): string | nu
     return null;
   }
 
-  return ALLOWED_RUNTIME_ORIGINS.has(origin) ? origin : null;
+  return ALLOWED_RUNTIME_ORIGINS.has(origin) || isAllowedViteDevOrigin(origin) ? origin : null;
 }
 
 export function appendRuntimeBodyChunk(

@@ -11,11 +11,24 @@ const fastify = Fastify({
   logger,
 });
 
-const allowedCorsOrigins = new Set(['http://localhost:5173', 'http://127.0.0.1:5173']);
+function isAllowedCorsOrigin(origin: string): boolean {
+  try {
+    const parsed = new URL(origin);
+    const port = Number.parseInt(parsed.port, 10);
+    return (
+      parsed.protocol === 'http:' &&
+      (parsed.hostname === 'localhost' || parsed.hostname === '127.0.0.1') &&
+      port >= 5173 &&
+      port <= 5199
+    );
+  } catch {
+    return false;
+  }
+}
 
 await fastify.register(cors, {
   origin: (origin, callback) => {
-    if (!origin || allowedCorsOrigins.has(origin)) {
+    if (!origin || isAllowedCorsOrigin(origin)) {
       callback(null, true);
       return;
     }

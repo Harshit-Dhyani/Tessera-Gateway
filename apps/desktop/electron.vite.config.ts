@@ -7,6 +7,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 const repoRoot = resolve(__dirname, '../..');
 const coreDist = resolve(repoRoot, 'packages/core/dist');
+const providerChatGptSrc = resolve(repoRoot, 'packages/provider-chatgpt/src');
 
 const coreAliases = [
   {
@@ -20,6 +21,14 @@ const coreAliases = [
   {
     find: /^@tessera-gateway\/core\/providers\/registry\.js$/,
     replacement: resolve(coreDist, 'providers/registry.js'),
+  },
+  {
+    find: /^@tessera-gateway\/provider-chatgpt$/,
+    replacement: resolve(providerChatGptSrc, 'index.ts'),
+  },
+  {
+    find: /^@tessera-gateway\/provider-chatgpt\/browserAutomation$/,
+    replacement: resolve(providerChatGptSrc, 'browserAutomation.ts'),
   },
 ] as const;
 
@@ -35,6 +44,7 @@ export default defineConfig({
       externalizeDepsPlugin({
         exclude: [
           '@tessera-gateway/core',
+          '@tessera-gateway/provider-chatgpt',
           '@tessera-gateway/runtime',
           '@tessera-gateway/observability',
           '@tessera-gateway/security',
@@ -56,6 +66,7 @@ export default defineConfig({
       externalizeDepsPlugin({
         exclude: [
           '@tessera-gateway/core',
+          '@tessera-gateway/provider-chatgpt',
           '@tessera-gateway/runtime',
           '@tessera-gateway/observability',
           '@tessera-gateway/security',

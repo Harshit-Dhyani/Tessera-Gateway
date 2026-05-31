@@ -656,11 +656,11 @@ Document environment assumptions. Random environment bugs waste time and everyon
 
 This repo builds in phases. Phase discipline prevents scope leakage.
 
-### Current Phase: scaffold_only
+### Current Phase: browser_automation
 
-This phase focuses on establishing the foundation without implementing real provider automation.
+This phase starts real, visible-browser provider automation while preserving the scaffold contracts for providers that are not implemented yet.
 
-**Allowed in scaffold_only phase:**
+**Allowed in browser_automation phase:**
 
 - contracts, schemas, and type definitions
 - package structure and imports
@@ -673,35 +673,25 @@ This phase focuses on establishing the foundation without implementing real prov
 - unit tests for contracts and schemas
 - integration tests for API/MCP parity
 - documentation for architecture and security
+- provider-owned DOM selectors, readiness checks, prompt submission, and response capture for explicitly implemented providers
+- visible, human-login browser automation through app-owned provider profiles
+- honest timeout, not-authenticated, not-ready, and UI-changed failure responses
 
-**Forbidden in scaffold_only phase:**
+**Forbidden in browser_automation phase:**
 
-- real provider selectors (DOM selectors for ChatGPT, Claude, etc.)
-- real prompt sending to provider web interfaces
-- real response capture from provider UIs
 - login automation (auto-filling credentials)
-- headless browser workflows
-- Playwright browser context setup with real URLs
 - fake provider demos pretending real execution
 - token or cookie handling from real providers
-- production-like error handling for provider failures
-- any code that would work if providers were real
+- selectors or capture logic outside provider-owned modules
+- fake success when a provider page is not ready, logged out, blocked, changed, or timed out
 
 **Phase Exit Criteria:**
 
-- all stubs return honest, machine-readable responses
-- API and MCP surfaces return equivalent responses
-- storage initializes but has no real provider state
-- UI shows explicit "scaffold" or "not implemented" labels
-- no code path pretends to work with real providers
-- architecture documentation describes where real automation will go
-- at least one regression test confirms stub behavior
-
-Transition to `browser_automation` phase requires:
-- explicit documentation in AGENTS.md
-- Playwright dependency added and configured
-- first real provider adapter implementation started
-- smoke test infrastructure in place
+- ChatGPT can complete one prompt-response loop through MCP and local API after manual login
+- implemented provider selectors live in `packages/provider-chatgpt`
+- unsupported providers still return honest not-implemented responses
+- provider breakage returns `PROVIDER_UI_CHANGED`, `PROVIDER_NOT_READY`, or `PROVIDER_TIMEOUT` with logs
+- MCP and local API return equivalent normalized responses for the implemented provider
 
 ## 34. Canonical Owners Map
 
@@ -790,6 +780,9 @@ Every stubbed provider adapter and scaffolded runtime path must return a normali
 - Provider URL approval must compare parsed URL origins, never raw string prefixes
 - MCP stdio servers must keep protocol output on stdout and send logs to stderr only
 - Desktop runtime server startup must handle loopback port conflicts explicitly instead of crashing the app process
+- ChatGPT DOM selectors, prompt insertion logic, and response capture scripts must live in `packages/provider-chatgpt`, not desktop main or transport routes
+- Desktop development must load `ELECTRON_RENDERER_URL` when present; never hardcode one Vite port as the only renderer URL
+- Provider load state must listen for both `did-finish-load` and `did-stop-loading`; provider pages can stop without the finish event the first implementation expected
 
 ### Stub Testing Requirements
 
