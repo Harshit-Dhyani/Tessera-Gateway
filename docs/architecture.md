@@ -1,278 +1,253 @@
 # Architecture
 
-This document describes the system architecture for the Tessera Gateway.
+This document describes the current V1 architecture for Tessera Gateway.
+
+Last updated: June 1, 2026
 
 ## System Overview
 
-Current verified V1 shape:
+Tessera Gateway is a local, Windows-first gateway that routes MCP/local API requests into visible provider web interfaces.
+
+Current verified shape:
 
 - `packages/runtime` is the canonical orchestration layer.
-- `apps/gateway` and `apps/mcp` are thin transport surfaces over runtime.
-- `apps/desktop/src/main` owns BrowserView lifecycle, workspace attachment, and session bridge only.
-- `packages/provider-*` own provider-specific execution assumptions and remain honest stubs in scaffold-only phase.
+- `apps/mcp` and `apps/gateway` are transport surfaces over runtime.
+- `apps/desktop/src/main` owns Electron BrowserView lifecycle, window attachment, layout, and the loopback runtime bridge.
+- `packages/provider-*` own provider-specific DOM assumptions, prompt insertion, submit behavior, readiness checks, and response capture.
+- Provider login is manual and visible.
 
-```
-┌─────────────────────────────────────────────────────────────────────────┐
-│                           User / Tool Client                            │
-│                   (HTTP API, MCP Tools, Desktop UI)                     │
-└──────────────────────────────┬──────────────────────────────────────────┘
-                               │
-                               ▼
-┌─────────────────────────────────────────────────────────────────────────┐
-│                         Gateway (Fastify)                               │
-│                    /health, /v1/models, /v1/chat                       │
-└──────────────────────────────┬──────────────────────────────────────────┘
-                               │
-                               ▼
-┌─────────────────────────────────────────────────────────────────────────┐
-│                     Runtime Orchestration                               │
-│            Provider selection, fallback policy, health                 │
-└────────┬───────────────┬───────────────┬───────────────┬───────────────┘
-         │               │               │               │
-         ▼               ▼               ▼               ▼
-┌─────────────┐  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐
-│  ChatGPT    │  │  Claude     │  │  Gemini     │  │ Perplexity  │
-│  Adapter    │  │  Adapter    │  │  Adapter    │  │  Adapter    │
-└──────┬──────┘  └──────┬──────┘  └──────┬──────┘  └──────┬──────┘
-       │               │               │               │
-       ▼               ▼               ▼               ▼
-┌─────────────────────────────────────────────────────────────────────────┐
-│                    Playwright Browser Context                           │
-│              Persistent Chromium per provider (V2)                     │
-└─────────────────────────────────────────────────────────────────────────┘
-                               │
-                               ▼
-┌─────────────────────────────────────────────────────────────────────────┐
-│                     Provider Web Interfaces                             │
-│                 chat.openai.com, claude.ai, gemini.google.com          │
-└─────────────────────────────────────────────────────────────────────────┘
+```text
+User / MCP Client / Local API Client
+  -> apps/mcp or apps/gateway
+  -> packages/runtime
+  -> desktop runtime bridge on 127.0.0.1:7870
+  -> apps/desktop ProviderViewManager
+  -> provider BrowserView
+  -> provider web UI
 ```
 
-In the current scaffold-only phase, provider adapters must not execute real provider DOM automation or fake successful completions.
+## Current Execution Flow
+
+### MCP `send_prompt`
+
+1. MCP client calls `send_prompt`.
+2. `apps/mcp` validates the provider id and prompt.
+3. `packages/runtime` checks the desktop bridge and provider state.
+4. Runtime posts to `/runtime/providers/sendPrompt` on `127.0.0.1:7870`.
+5. Desktop `ProviderViewManager` selects the BrowserView by `providerId`.
+6. Desktop dispatches the provider-owned browser automation script.
+7. The provider script sets composer input, submits, and captures stable response text.
+8. Desktop returns a normalized response.
+9. Runtime returns the same normalized response to MCP.
+
+Execution targets the requested `providerId`, not the currently focused pane. Multiple providers can be open at once in split or grid layout.
+
+## Current Provider State
+
+| Provider | Execution Package | Current Live Status |
+|----------|-------------------|---------------------|
+| ChatGPT | `packages/provider-chatgpt` | Implemented path, login/session dependent |
+| Claude | `packages/provider-claude` | Login page detected, returns `PROVIDER_NOT_AUTHENTICATED` |
+| Gemini | `packages/provider-gemini` | Working through MCP in current session |
+| Perplexity | `packages/provider-perplexity` | Signup/login layer detected, returns `PROVIDER_NOT_AUTHENTICATED` |
+
+Direct provider adapter classes still return scaffold responses. Real browser execution is currently owned by desktop runtime plus provider-owned `browserAutomation.ts` modules.
 
 ## Component Responsibilities
 
-### apps/desktop
+### `apps/desktop`
 
-**Purpose**: Electron desktop shell and control surface
+Owns:
 
-**Responsibilities**:
-- Electron main process lifecycle
-- BrowserWindow management
-- IPC bridge to renderer
-- Provider status display
-- Settings management UI
-- Log viewer
-- Session reset controls
+- Electron app lifecycle
+- BrowserWindow and BrowserView management
+- Provider pane layout: single, split, grid
+- Runtime bridge on loopback port `7870`
+- Provider session partition lifecycle
+- Dispatching provider-owned scripts to the selected BrowserView
 
-**Must NOT own**:
-- Routing logic
-- Provider adapter execution
-- Core normalization logic
-- Provider DOM assumptions or `executeJavaScript` capture paths
+Must not own:
 
-### apps/gateway
+- provider DOM selectors
+- provider response capture rules
+- router policy
+- normalized response schema definitions
+- credential parsing or login automation
 
-**Purpose**: Local HTTP API server
+### `apps/mcp`
 
-**Responsibilities**:
-- Fastify server with request validation (Zod)
-- `/health` - health check endpoint
-- `/v1/models` - available models endpoint
-- `/v1/chat/completions` - chat completion endpoint
-- Structured logging with Pino
-- Request ID propagation
+Owns:
 
-**Must NOT own**:
-- Duplicate orchestration logic
-- Provider-specific automation
+- MCP stdio server
+- tool registration
+- input validation
+- tool response formatting
 
-### apps/mcp
+Must call shared runtime. It must not implement its own provider flow.
 
-**Purpose**: Model Context Protocol server
+### `apps/gateway`
 
-**Responsibilities**:
-- MCP SDK server setup
-- Tool registration (ping, status, chat)
-- Request validation
-- Response formatting
+Owns:
 
-**Must use**:
-- Shared runtime for tool execution
-- Same core contracts as gateway
+- local HTTP compatibility surface
+- health/model/chat endpoints
+- request validation
+- structured logging
 
-### packages/core
+Must call shared runtime. It must not duplicate provider automation.
 
-**Purpose**: Shared types and contracts
+### `packages/runtime`
 
-**Contents**:
-- Zod schemas (ChatRequest, ChatResponse)
-- Model aliases (chatgpt, claude, gemini, perplexity, auto)
-- Error types (GatewayError, ProviderError)
-- Enums and constants
+Owns:
 
-### packages/router
+- provider id resolution
+- desktop runtime availability checks
+- normalized unavailable/error responses
+- runtime HTTP client
+- prompt timeout policy for desktop bridge calls
+- MCP/API parity behavior
 
-**Purpose**: Compatibility layer for historical routing helpers
+Runtime intentionally gives browser-automation providers page-level auth checks, because cookie count alone is not reliable for anonymous or partially authenticated provider pages.
 
-**Responsibilities**:
-- Alias helpers and compatibility exports only
-- Must not become a second orchestration layer
+### `packages/core`
 
-**Canonical orchestration owner**:
-- `packages/runtime`
+Owns:
 
-### packages/session
+- provider registry
+- shared schemas
+- error codes
+- normalized response contracts
+- aliases and provider metadata
 
-**Purpose**: Browser session abstractions
+### `packages/provider-*`
 
-**Responsibilities** (V1 placeholder):
-- Session status interface
-- Profile directory management contract
-- Login state check interface
+Own:
 
-**V1**: Stub only - no real session management
+- provider-specific selectors
+- composer input synchronization
+- submit behavior
+- response capture rules
+- page-level login/signup detection
+- provider-specific smoke regression tests
 
-### packages/storage
+Provider scripts must return honest failure codes when blocked by auth, disabled controls, changed UI, or timeout.
 
-**Purpose**: Local persistence
+## Browser Automation Boundaries
 
-**Tables**:
-- `settings` - App configuration
-- `request_logs` - Request history
-- `provider_status` - Provider health snapshots
-- `app_state` - Runtime state
+Allowed:
 
-**Tech**: SQLite via Drizzle ORM
+- visible BrowserView automation in app-owned provider sessions
+- native input setter synchronization for controlled composers
+- provider-owned DOM queries
+- stable text capture from answer-like containers
+- honest failures when provider state is blocked
 
-### packages/observability
+Forbidden:
 
-**Purpose**: Logging and metrics
+- automatic login
+- captcha solving
+- stealth plugins or fingerprint spoofing
+- importing external cookies
+- reading normal Chrome/Edge profiles
+- logging raw cookies, tokens, or credentials
+- returning success from page chrome, prompt echo, or placeholder text
 
-**Responsibilities**:
-- Pino logger configuration
-- Request ID middleware
-- Structured event logging
-- Redaction helpers
+## Login and Session Architecture
 
-### packages/security
+Each provider uses an isolated persistent Electron session partition:
 
-**Purpose**: Input validation and safety
+```text
+persist:provider-chatgpt
+persist:provider-claude
+persist:provider-gemini
+persist:provider-perplexity
+```
 
-**Responsibilities**:
-- Path validation for file tools
-- URL allowlist checking
-- Secret redaction in logs
-- Input sanitization
+Users log in manually when a provider requires it. Closing or focusing panes does not change the execution target; MCP still addresses the selected provider by id.
 
-### packages/provider-*
+Session reset must be explicit and provider-scoped.
 
-**Purpose**: Provider adapters (4 packages)
+## Runtime Bridge
 
-**Interface**:
-- `execute(request: ChatRequest): Promise<ChatResponse>`
-- `getHealth(): Promise<ProviderHealth>`
-- `getMetadata(): ProviderMetadata`
+Desktop exposes local runtime endpoints on:
 
-**V1 Status**: All return honest scaffold-only responses
+```text
+http://127.0.0.1:7870
+```
+
+Important endpoints:
+
+| Endpoint | Purpose |
+|----------|---------|
+| `/health` | desktop bridge health |
+| `/runtime/providers/state` | provider BrowserView states |
+| `/runtime/providers/open` | open provider BrowserView |
+| `/runtime/providers/sendPrompt` | run provider-owned prompt automation |
+| `/runtime/providers/resetSession` | reset one provider session |
+| `/runtime/providers/openParallel` | open multiple providers |
+
+The bridge is loopback-only. CORS is restricted to known local UI origins.
 
 ## Data Flow
 
-### HTTP Request Flow
+### Successful Gemini MCP Flow
 
-1. Client sends POST to `/v1/chat/completions`
-2. Gateway validates request (Zod)
-3. Gateway calls runtime.sendPrompt()
-4. Runtime resolves provider and checks state
-5. Runtime calls provider or desktop bridge
-6. Adapter or bridge returns normalized response
-7. Gateway logs result and returns to client
-
-### MCP Tool Flow
-
-1. Client calls MCP tool (e.g., `gateway_chat`)
-2. MCP server validates input
-3. MCP server calls shared runtime
-4. Runtime executes as above
-5. MCP server formats response for tool output
-
-## IPC Architecture (Desktop)
-
-```
-┌─────────────────┐     IPC      ┌─────────────────┐
-│   Renderer     │ ◄──────────► │     Main        │
-│   (React UI)   │   context    │   (Electron)    │
-│                │   Bridge     │                 │
-│  - Status      │              │  - Window Mgmt  │
-│  - Settings   │              │  - IPC Handlers │
-│  - Logs        │              │  - App Lifecycle│
-└─────────────────┘              └─────────────────┘
+```text
+MCP send_prompt(gemini)
+  -> runtime validates desktop bridge
+  -> desktop selects gemini BrowserView
+  -> provider-gemini browserAutomation sets controlled composer input
+  -> Gemini returns answer text
+  -> normalized response ok=true
 ```
 
-### Preload Bridge (Minimal Exposure)
+### Perplexity Auth-Gated Flow
 
-```typescript
-// Exposed API surface
-window.gateway = {
-  getProviderStatus: () => ipcRenderer.invoke('provider:status'),
-  getSettings: () => ipcRenderer.invoke('settings:get'),
-  updateSettings: (settings) => ipcRenderer.invoke('settings:update', settings),
-  getLogs: (filter) => ipcRenderer.invoke('logs:get', filter),
-  resetSession: (provider) => ipcRenderer.invoke('session:reset', provider),
-};
+```text
+MCP send_prompt(perplexity)
+  -> runtime validates desktop bridge
+  -> desktop selects perplexity BrowserView
+  -> provider-perplexity detects signup/login layer
+  -> normalized response ok=false, PROVIDER_NOT_AUTHENTICATED
 ```
 
-## Configuration
+## Verification
 
-### Environment Variables
+Static verification:
 
-| Variable | Default | Purpose |
-|----------|---------|---------|
-| `PORT` | 7860 | Gateway API port |
-| `MCP_PORT` | 7861 | MCP server port |
-| `DATA_DIR` | `./data` | SQLite database location |
-| `LOG_LEVEL` | `info` | Pino log level |
-
-### Settings Schema
-
-```typescript
-interface Settings {
-  gateway: {
-    port: number;
-    host: string; // default: '127.0.0.1'
-  };
-  mcp: {
-    port: number;
-  };
-  storage: {
-    dataDir: string;
-    maxRequestLogs: number; // default: 1000
-  };
-  providers: {
-    enabled: string[]; // provider IDs
-    defaultModel: string; // model alias
-  };
-  logging: {
-    level: 'trace' | 'debug' | 'info' | 'warn' | 'error';
-    redactSecrets: boolean;
-  };
-}
+```bash
+bun run lint
+bun run typecheck
+bun run test
+bun run build
 ```
+
+Live MCP smoke verification:
+
+```bash
+bun run dev:desktop
+bun run apps/mcp/mcp-send-prompt-full.ts gemini
+bun run apps/mcp/mcp-send-prompt-full.ts perplexity
+bun run apps/mcp/mcp-send-prompt-full.ts claude
+```
+
+The desktop runtime must remain running for live provider smoke tests. On Windows, a visible desktop launch is more reliable than launching Electron hidden because the app can exit when its window lifecycle closes.
 
 ## Security Boundaries
 
-1. **Renderer → Main**: IPC only, no Node.js exposure
-2. **Main → Storage**: Validated paths, no arbitrary filesystem access
-3. **Gateway → Providers**: No credential handling in V1
-4. **MCP Tools**: Explicit tool registration, no dynamic execution
-5. **Logs**: Redaction of secrets, no raw cookies/tokens
+1. Renderer to main: context-isolated preload bridge only.
+2. MCP/gateway to runtime: validated provider ids and prompts.
+3. Runtime to desktop bridge: loopback-only HTTP.
+4. Desktop to provider web UI: isolated BrowserView session per provider.
+5. Provider scripts to DOM: provider-owned selectors only.
+6. Logs: no raw cookies, tokens, credentials, or replayable session identifiers.
 
 ## Extension Points
 
-| Area | Extension Point | Notes |
-|------|------------------|-------|
-| Providers | `packages/provider-*` | Add new provider package |
-| MCP Tools | `apps/mcp/src/tools/` | Add new tool file |
-| Storage | `packages/storage` | Add new tables/migrations |
-| Router | `packages/router` | Add new fallback policies |
-| UI | `apps/desktop/src/renderer/` | Add new React components |
+| Area | Owner | Notes |
+|------|-------|-------|
+| Add provider | `packages/provider-*` plus `packages/core/src/providers/registry.ts` | Add provider-owned automation and tests. |
+| Add MCP tool | `apps/mcp` | Must call shared runtime. |
+| Add HTTP route | `apps/gateway` | Must call shared runtime. |
+| Add storage | `packages/storage` | SQLite/Drizzle ownership. |
+| Add runtime behavior | `packages/runtime` | Keep transport-independent. |

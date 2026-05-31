@@ -1,231 +1,221 @@
 # Tessera Gateway
 
-A Windows-first local gateway that provides unified access to multiple AI provider web interfaces through a browser UI, local HTTP API, MCP server, and canonical runtime.
+Tessera Gateway is a Windows-first local AI gateway for controlling multiple provider web interfaces from one local runtime.
 
-## V1 Product Direction
+It is not a hosted chatbot and it does not use unofficial model APIs. V1 uses visible provider web sessions inside an Electron desktop shell, then exposes those sessions through:
 
-**Target**: one local browser-accessible gateway that can keep serving the user even when the desktop window is closed.
+- a local browser-accessible gateway surface
+- a local HTTP API compatibility layer
+- an MCP server
+- one shared runtime bridge
+- provider-owned browser automation scripts
 
-The desktop app is an optional operator shell for visible provider windows. It must not be the only way to use Tessera Gateway.
+## Current Status
 
-### V1 Startup Order
+Current phase: `browser_automation`
+
+The provider adapter packages still expose scaffold adapter classes for the package interface, but the desktop runtime now has real provider-owned browser automation for prompt submission and response capture.
+
+Verified on June 1, 2026:
+
+| Provider | MCP `send_prompt` Status | Login Requirement Observed | Notes |
+|----------|--------------------------|----------------------------|-------|
+| Gemini | Working | No login required in current session | Returned real text through MCP. |
+| Perplexity | Blocked by provider page | Signup/login layer shown | Tessera returns `PROVIDER_NOT_AUTHENTICATED` instead of fake success. |
+| Claude | Blocked by provider page | Login page shown | Tessera returns `PROVIDER_NOT_AUTHENTICATED` until manual login. |
+| ChatGPT | Implemented path, login dependent | Login may be required | Browser automation path exists; manual provider login is expected. |
+
+Recent live MCP evidence:
+
+```text
+Gemini: ok=true, response="Hey there! It's great to connect with you."
+Perplexity: ok=false, error.code=PROVIDER_NOT_AUTHENTICATED
+Claude: ok=false, error.code=PROVIDER_NOT_AUTHENTICATED
+```
+
+Provider web interfaces change frequently. A green result means the current local session and current provider page worked during the smoke test, not that the provider will always work without login.
+
+## Product Direction
+
+The intended V1 shape is:
+
+```text
+User or tool client
+  -> local HTTP API or MCP server
+  -> packages/runtime
+  -> desktop runtime bridge on 127.0.0.1:7870
+  -> provider BrowserView
+  -> provider web interface
+```
+
+The desktop shell owns visible provider windows and login/session lifecycle. The runtime and provider packages own execution contracts. Provider-specific DOM selectors and response capture logic live only in `packages/provider-*`.
+
+## Startup
+
+Install dependencies:
 
 ```bash
-# Start the local gateway first
-bun run dev:gateway
+bun install
+```
 
-# Open the browser UI/API locally
-# http://127.0.0.1:7860
+Start the desktop runtime when provider BrowserViews or MCP prompt execution are needed:
 
-# Start the MCP server in a separate terminal when needed
-bun run dev:mcp
-
-# Start the desktop app only when provider BrowserView/session controls are needed
+```bash
 bun run dev:desktop
 ```
 
-### V1 MCP Capabilities
+The desktop process starts the runtime bridge at:
 
-The MCP server communicates with the desktop's runtime bridge (port 7870) through `packages/runtime`.
+```text
+http://127.0.0.1:7870
+```
 
-**Supported MCP Tools:**
-| Tool | Description | Desktop Required |
-|------|-------------|------------------|
-| `list_providers` | List all available providers | No |
-| `get_provider_state` | Get detailed provider state | Yes |
-| `open_provider` | Open a provider in the desktop app | Yes |
-| `close_provider` | Close a provider | Yes |
-| `focus_provider` | Focus (bring to front) a provider | Yes |
-| `set_layout` | Set layout mode (single/split/grid) | Yes |
-| `send_prompt` | Send prompt to provider | Yes (returns scaffold-only failure) |
-| `reset_provider_session` | Reset provider session | Yes |
-| `get_runtime_state` | Get current runtime state | Yes |
+Start the MCP server in a separate process when using external MCP clients:
 
-### V1 Limitations
+```bash
+bun run dev:mcp
+```
 
-1. **Provider BrowserView controls require desktop** - the browser UI/API should remain reachable without the desktop window
-2. **send_prompt returns scaffold-only failure** - Prompt execution is not yet available in v1
-3. **No headless execution** - Providers must be opened through the desktop UI
-4. **Provider adapters remain scaffold-only** - ChatGPT, Claude, Gemini, and Perplexity are still honest stubs until browser automation is introduced
+The standalone HTTP gateway can also be started for the local compatibility surface:
 
-### Sample MCP Call Flow
+```bash
+bun run dev:gateway
+```
+
+## MCP Tools
+
+The MCP server talks to `packages/runtime`, which talks to the desktop runtime bridge when a provider BrowserView is required.
+
+| Tool | Description | Desktop Runtime Required |
+|------|-------------|--------------------------|
+| `list_providers` | List configured providers and current state | No |
+| `get_provider_state` | Read one provider BrowserView state | Yes |
+| `open_provider` | Open a provider BrowserView | Yes |
+| `close_provider` | Close a provider BrowserView | Yes |
+| `focus_provider` | Focus a provider pane | Yes |
+| `set_layout` | Set single, split, or grid layout | Yes |
+| `open_parallel_providers` | Open multiple provider panes | Yes |
+| `send_prompt` | Send prompt through a provider web UI | Yes |
+| `reset_provider_session` | Clear one provider session | Yes |
+| `get_runtime_state` | Read desktop runtime state | Yes |
+
+### Example MCP Flow
 
 ```json
-// 1. List providers
-{ "name": "list_providers", "arguments": {} }
+{ "name": "open_provider", "arguments": { "providerId": "gemini" } }
+```
 
-// Response:
+Wait until `get_provider_state` reports `loadState: "ready"`, then:
+
+```json
 {
-  "ok": true,
-  "providers": [
-    { "providerId": "chatgpt", "displayName": "ChatGPT", "loadState": "idle", ... }
-  ]
-}
-
-// 2. Open ChatGPT
-{ "name": "open_provider", "arguments": { "providerId": "chatgpt" } }
-
-// 3. Get state
-{ "name": "get_provider_state", "arguments": { "providerId": "chatgpt" } }
-
-// Response (example):
-{
-  "ok": true,
-  "state": {
-    "providerId": "chatgpt",
-    "loadState": "ready",
-    "isLoggedIn": false,
-    "currentUrl": "https://chat.openai.com",
-    ...
+  "name": "send_prompt",
+  "arguments": {
+    "providerId": "gemini",
+    "prompt": "Say hi in one short sentence."
   }
 }
+```
 
-// 4. Send prompt (returns scaffold-only failure in v1)
-{ "name": "send_prompt", "arguments": { "providerId": "chatgpt", "prompt": "hello" } }
+Successful normalized response:
 
-// Response:
+```json
+{
+  "ok": true,
+  "providerId": "gemini",
+  "model": "gemini",
+  "text": "Hey there! It's great to connect with you.",
+  "loadState": "ready",
+  "error": null
+}
+```
+
+Blocked login response:
+
+```json
 {
   "ok": false,
-  "providerId": "chatgpt",
+  "providerId": "perplexity",
   "error": {
-    "code": "PROVIDER_NOT_IMPLEMENTED",
-    "message": "Provider automation is scaffold-only in this phase.",
+    "code": "PROVIDER_NOT_AUTHENTICATED",
+    "message": "Perplexity is showing a signup or login layer before prompt execution.",
     "retryable": false
   }
 }
 ```
 
-### Gateway Status
+## Provider Login Model
 
-The HTTP Gateway (`apps/gateway`) uses the shared runtime orchestration layer and returns normalized responses. It is a local compatibility surface for OpenAI-compatible API clients, not a second orchestration system.
+Tessera Gateway does not automate login, solve captchas, import cookies, scrape credentials, or bypass provider consent.
 
-### Architecture
+Use the provider pane normally:
 
-```
-Browser UI / MCP Client / API Client
-    ↓
-apps/gateway / apps/mcp
-    ↓
-packages/runtime (orchestration layer)
-    ↓ optional local bridge
-apps/desktop (provider BrowserView management)
-```
+1. Open the provider with `open_provider` or the desktop UI.
+2. Complete login manually if the provider asks for it.
+3. Leave the provider pane open.
+4. Use MCP or the local runtime to send prompts.
 
-### Error Codes
+Some providers may work without login for a while, then later require login. Tessera should report that state honestly with `PROVIDER_NOT_AUTHENTICATED`, `PROVIDER_NOT_READY`, or `PROVIDER_TIMEOUT`.
 
-| Code | Description | Retryable |
-|------|-------------|-----------|
-| `DESKTOP_RUNTIME_UNAVAILABLE` | Desktop not running | No |
-| `PROVIDER_NOT_FOUND` | Unknown provider | No |
-| `PROVIDER_NOT_READY` | Provider not open/loading | Yes |
-| `PROVIDER_NOT_AUTHENTICATED` | Not logged in | No |
-| `PROVIDER_NOT_IMPLEMENTED` | Scaffold-only prompt path | No |
-| `PROVIDER_UI_CHANGED` | Provider capture is broken | No |
-| `PROVIDER_EXECUTION_FAILED` | Provider execution failed | Yes |
-| `RUNTIME_ERROR` | Internal error | Yes |
+## Layout and Control
 
----
+Multiple provider panes can be open at once in single, split, or grid layout. MCP calls target providers by `providerId`, not by whichever pane is visually focused. The desktop layout controls visibility and bounds; execution dispatch still uses the requested provider id.
 
-## Project Overview
+## Error Codes
 
-### V1 Scope
-
-| What V1 Supports | What V1 Does NOT Support |
-|------------------|-------------------------|
-| ✅ Electron desktop shell | ❌ Real headless prompt execution |
-| ✅ Local HTTP API (port 7860) | ❌ Multi-provider parallel execution |
-| ✅ MCP server with tools | ❌ Production deployment |
-| ✅ Provider browser views | ❌ Advanced routing |
-| ✅ Desktop runtime bridge (port 7870) | ❌ Full session automation |
-
-### Architecture Overview
-
-```
-User/Tool → Local HTTP API / MCP Server
-              ↓
-         packages/runtime
-              ↓
-     Desktop Runtime Bridge (port 7870)
-              ↓
-     Provider View Manager → BrowserView → Provider Web UI
-```
-
-### Key Components
-
-| Component | Location | Purpose |
-|-----------|----------|---------|
-| Gateway | `apps/gateway` | Fastify local API and browser-accessible runtime surface |
-| Desktop App | `apps/desktop` | Optional Electron shell + provider BrowserView controls |
-| MCP Server | `apps/mcp` | Model Context Protocol |
-| Runtime | `packages/runtime` | Canonical orchestration layer |
-| Core | `packages/core` | Shared types, registry |
-
-## Quick Start
-
-```bash
-# Install dependencies
-bun install
-
-# Run HTTP gateway/browser surface
-bun run dev:gateway
-
-# Run MCP server (in separate terminal)
-bun run dev:mcp
-
-# Run desktop app only when provider windows are needed
-bun run dev:desktop
-```
+| Code | Meaning | Retryable |
+|------|---------|-----------|
+| `DESKTOP_RUNTIME_UNAVAILABLE` | Desktop runtime bridge is not listening | Yes |
+| `PROVIDER_NOT_FOUND` | Unknown provider id | No |
+| `PROVIDER_NOT_READY` | Provider page is not open, still loading, or composer is not usable | Yes |
+| `PROVIDER_NOT_AUTHENTICATED` | Provider is showing login/signup/auth gate | No |
+| `PROVIDER_NOT_IMPLEMENTED` | Provider path is not implemented | No |
+| `PROVIDER_UI_CHANGED` | Provider DOM/capture contract appears broken | No |
+| `PROVIDER_TIMEOUT` | Prompt submitted or attempted but no stable response was captured | Yes |
+| `RUNTIME_ERROR` | Runtime or bridge failure | Yes |
 
 ## Verification
 
+Default checks:
+
 ```bash
+bun run lint
 bun run typecheck
 bun run test
+bun run build
 ```
+
+Live MCP smoke helper:
+
+```bash
+bun run apps/mcp/mcp-send-prompt-full.ts gemini
+bun run apps/mcp/mcp-send-prompt-full.ts perplexity
+bun run apps/mcp/mcp-send-prompt-full.ts claude
+```
+
+The desktop runtime must be running for these smoke tests.
 
 ## Project Structure
 
-```
-/
-├── apps/
-│   ├── desktop/      # Electron app + runtime bridge
-│   ├── gateway/     # Fastify API (runtime-backed compatibility surface)
-│   └── mcp/         # MCP server
-├── packages/
-│   ├── core/        # Shared types, registry
-│   ├── runtime/     # Canonical orchestration layer
-│   ├── router/      # Legacy routing compatibility helpers
-│   ├── session/     # Session management
-│   ├── storage/    # SQLite/Drizzle
-│   ├── observability/# Logging
-│   ├── security/   # Validation
-│   └── provider-*/  # 4 provider adapters
-├── tests/           # Unit, integration, e2e
-├── docs/            # Architecture, security, providers
-└── scripts/         # Dev and build scripts
+```text
+apps/desktop     Electron shell, BrowserView lifecycle, local runtime bridge
+apps/gateway     Fastify local HTTP compatibility surface
+apps/mcp         MCP stdio server
+packages/core    Shared schemas, registry, errors, normalized contracts
+packages/runtime Shared orchestration and desktop bridge client
+packages/provider-* Provider-owned web UI assumptions and browser automation
+packages/router  Compatibility alias helpers
+packages/session Session abstractions
+packages/storage SQLite/Drizzle schema scaffolding
+packages/security Validation and redaction helpers
+packages/observability Logging helpers
+tests            Unit and integration tests
+docs             Architecture, provider, security, and MCP docs
 ```
 
 ## Documentation
 
-- [MCP Client Configuration](docs/mcp-client-config.md) - How to configure MCP clients
-- [Architecture](docs/architecture.md) - System design
-- [Security](docs/security.md) - Trust boundaries
-- [Providers](docs/providers.md) - Provider status
-
-## Tech Stack
-
-| Layer | Technology |
-|-------|------------|
-| Runtime | Bun, Node 20.x |
-| Desktop | Electron 28+ |
-| UI | React, Vite, Tailwind |
-| API | Fastify |
-| MCP | @modelcontextprotocol/sdk |
-| Validation | Zod |
-| Logging | Pino |
-
-## Requirements
-
-- Windows 10+
-- Bun (latest)
-- Node 20.x (for Electron/Playwright compatibility)
+- [Providers](docs/providers.md)
+- [Architecture](docs/architecture.md)
+- [MCP Client Configuration](docs/mcp-client-config.md)
+- [Security](docs/security.md)

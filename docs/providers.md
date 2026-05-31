@@ -1,248 +1,271 @@
 # Provider Status
 
-This document tracks the status of each supported AI provider.
+This document tracks provider automation status, login requirements, and current smoke evidence for Tessera Gateway.
 
-## Overview
+Last verified: June 1, 2026
 
-| Provider | Status | V1 Support | Notes |
-|----------|--------|------------|-------|
-| ChatGPT | 🏗️ Stub | Placeholder | Returns "not implemented" |
-| Claude | 🏗️ Stub | Placeholder | Returns "not implemented" |
-| Gemini | 🏗️ Stub | Placeholder | Returns "not implemented" |
-| Perplexity | 🏗️ Stub | Placeholder | Returns "not implemented" |
+## Summary
 
-## Provider Interface
+| Provider | Runtime Path | Current Live Result | Login Requirement Observed | Provider-Owned Script |
+|----------|--------------|---------------------|----------------------------|-----------------------|
+| ChatGPT | Browser automation | Implemented, login/session dependent | Manual login may be required | `packages/provider-chatgpt/src/browserAutomation.ts` |
+| Claude | Browser automation | Auth gate detected | Login required in current session | `packages/provider-claude/src/browserAutomation.ts` |
+| Gemini | Browser automation | Working through MCP | No login required in current session | `packages/provider-gemini/src/browserAutomation.ts` |
+| Perplexity | Browser automation | Auth gate detected | Signup/login layer shown in current session | `packages/provider-perplexity/src/browserAutomation.ts` |
 
-All providers implement the `IProviderAdapter` interface:
+The package adapters still return stub responses when called directly through the adapter interface. Real prompt execution currently happens through the desktop runtime bridge and provider-owned browser automation scripts.
 
-```typescript
-interface IProviderAdapter {
-  execute(request: ChatRequest): Promise<ChatResponse>;
-  getHealth(): Promise<ProviderHealth>;
-  getMetadata(): ProviderMetadata;
-}
+## Current Smoke Evidence
+
+Commands used with desktop runtime running:
+
+```bash
+bun run apps/mcp/mcp-send-prompt-full.ts gemini
+bun run apps/mcp/mcp-send-prompt-full.ts perplexity
+bun run apps/mcp/mcp-send-prompt-full.ts claude
 ```
 
-## ChatGPT (OpenAI)
+Observed results:
 
-### Adapter Location
-`packages/provider-chatgpt/`
+| Provider | Result |
+|----------|--------|
+| Gemini | `ok: true`, response text returned |
+| Perplexity | `ok: false`, `PROVIDER_NOT_AUTHENTICATED` |
+| Claude | `ok: false`, `PROVIDER_NOT_AUTHENTICATED` |
 
-### Status: STUB (V1)
+Representative Gemini response:
 
-**Current behavior**:
-```typescript
+```text
+Hey there! It's great to connect with you.
+```
+
+Representative Perplexity failure:
+
+```json
 {
-  ok: false,
-  providerId: "chatgpt",
-  model: "chatgpt",
-  text: "",
-  latencyMs: 0,
-  loadState: "failed",
-  error: {
-    code: "PROVIDER_NOT_IMPLEMENTED",
-    message: "Provider automation is scaffold-only in this phase.",
-    retryable: false
+  "ok": false,
+  "providerId": "perplexity",
+  "error": {
+    "code": "PROVIDER_NOT_AUTHENTICATED",
+    "message": "Perplexity is showing a signup or login layer before prompt execution.",
+    "retryable": false
   }
 }
 ```
 
-### V1 Limitations
+Representative Claude failure:
 
-- No browser automation
-- No login flow
-- No response capture
-- No session management
-
-### Smoke Test Checklist
-
-- [ ] Adapter package builds
-- [ ] Schema validation passes
-- [ ] Health check returns degraded status
-- [ ] Execute returns stub response
-
-### Expected V2 Requirements
-
-- Playwright persistent context
-- Provider-owned DOM selectors
-- Response capture selector
-- Login state detection
-- Honest failure handling for UI changes
-
----
-
-## Claude (Anthropic)
-
-### Adapter Location
-`packages/provider-claude/`
-
-### Status: STUB (V1)
-
-**Current behavior**:
-```typescript
+```json
 {
-  ok: false,
-  providerId: "claude",
-  model: "claude",
-  text: "",
-  latencyMs: 0,
-  loadState: "failed",
-  error: {
-    code: "PROVIDER_NOT_IMPLEMENTED",
-    message: "Provider automation is scaffold-only in this phase.",
-    retryable: false
+  "ok": false,
+  "providerId": "claude",
+  "error": {
+    "code": "PROVIDER_NOT_AUTHENTICATED",
+    "message": "Claude requires manual sign-in before prompt execution.",
+    "retryable": false
   }
 }
 ```
 
-### V1 Limitations
+## Provider Automation Contract
 
-Same as ChatGPT - stub only.
+Provider automation must follow these rules:
 
-### Smoke Test Checklist
+- All provider DOM selectors live in the provider package.
+- Desktop main may dispatch scripts but must not own provider selectors.
+- Login must be manual and visible.
+- Captcha solving, stealth plugins, credential scraping, cookie import, and auth bypass are forbidden.
+- A provider must fail honestly when blocked by login, signup, UI changes, disabled controls, or timeout.
+- No provider may return success by capturing page chrome, placeholder text, prompt echo, or unrelated page shell content.
 
-- [ ] Adapter package builds
-- [ ] Schema validation passes
-- [ ] Health check returns degraded status
-- [ ] Execute returns stub response
+## Provider Details
 
-### Expected V2 Requirements
+### ChatGPT
 
-- Playwright persistent context
-- DOM selector patterns
-- Response capture logic
-- Session persistence
+Location:
 
----
+```text
+packages/provider-chatgpt/
+```
 
-## Gemini (Google)
+Runtime script:
 
-### Adapter Location
-`packages/provider-gemini/`
+```text
+packages/provider-chatgpt/src/browserAutomation.ts
+```
 
-### Status: STUB (V1)
+Current behavior:
 
-**Current behavior**:
-```typescript
+- Uses visible BrowserView page automation.
+- Detects composer and send button.
+- Captures stable assistant text.
+- Returns `PROVIDER_NOT_AUTHENTICATED`, `PROVIDER_NOT_READY`, or `PROVIDER_TIMEOUT` when blocked.
+
+Login notes:
+
+- Manual login may be required.
+- Tessera must not automate credentials or import sessions.
+
+### Claude
+
+Location:
+
+```text
+packages/provider-claude/
+```
+
+Runtime script:
+
+```text
+packages/provider-claude/src/browserAutomation.ts
+```
+
+Current behavior:
+
+- Opens Claude provider page through the desktop BrowserView.
+- Current live session redirected to `https://claude.ai/login`.
+- MCP `send_prompt` reaches the provider path and returns an honest auth failure.
+
+Current verified response:
+
+```text
+PROVIDER_NOT_AUTHENTICATED
+```
+
+Login notes:
+
+- Manual login is required in the current observed session.
+- After login, the same MCP path should attempt composer input and response capture.
+
+### Gemini
+
+Location:
+
+```text
+packages/provider-gemini/
+```
+
+Runtime script:
+
+```text
+packages/provider-gemini/src/browserAutomation.ts
+```
+
+Current behavior:
+
+- Opens `https://gemini.google.com`.
+- Uses React-aware/native input setter synchronization for the composer.
+- Sends prompt and captures stable response text.
+- Current live smoke returned real text through MCP.
+
+Current verified response:
+
+```text
+Hey there! It's great to connect with you.
+```
+
+Login notes:
+
+- Gemini did not require login in the current observed session.
+- Gemini may still ask for sign-in depending on geography, account state, cookies, or provider-side changes.
+- If Gemini asks for sign-in, Tessera must return `PROVIDER_NOT_AUTHENTICATED` rather than bypassing it.
+
+### Perplexity
+
+Location:
+
+```text
+packages/provider-perplexity/
+```
+
+Runtime script:
+
+```text
+packages/provider-perplexity/src/browserAutomation.ts
+```
+
+Current behavior:
+
+- Opens `https://www.perplexity.ai`.
+- Handles the prompt composer with native input setter synchronization.
+- Avoids false success from page shell, prompt echoes, and generic home-page text.
+- Current live session shows a signup/login layer before prompt execution.
+
+Current verified response:
+
+```text
+PROVIDER_NOT_AUTHENTICATED
+```
+
+Login notes:
+
+- Perplexity may allow limited anonymous use in some sessions, but the current verified session shows a signup/login gate.
+- After manual login or a non-gated provider state, the same MCP path should attempt prompt submission and answer capture.
+
+## MCP Usage
+
+Open a provider:
+
+```json
 {
-  ok: false,
-  providerId: "gemini",
-  model: "gemini",
-  text: "",
-  latencyMs: 0,
-  loadState: "failed",
-  error: {
-    code: "PROVIDER_NOT_IMPLEMENTED",
-    message: "Provider automation is scaffold-only in this phase.",
-    retryable: false
+  "name": "open_provider",
+  "arguments": {
+    "providerId": "gemini"
   }
 }
 ```
 
-### V1 Limitations
+Send a prompt:
 
-Same as ChatGPT - stub only.
-
-### Smoke Test Checklist
-
-- [ ] Adapter package builds
-- [ ] Schema validation passes
-- [ ] Health check returns degraded status
-- [ ] Execute returns stub response
-
-### Expected V2 Requirements
-
-- Playwright persistent context
-- DOM selector patterns
-- Response capture logic
-
----
-
-## Perplexity
-
-### Adapter Location
-`packages/provider-perplexity/`
-
-### Status: STUB (V1)
-
-**Current behavior**:
-```typescript
+```json
 {
-  ok: false,
-  providerId: "perplexity",
-  model: "perplexity",
-  text: "",
-  latencyMs: 0,
-  loadState: "failed",
-  error: {
-    code: "PROVIDER_NOT_IMPLEMENTED",
-    message: "Provider automation is scaffold-only in this phase.",
-    retryable: false
+  "name": "send_prompt",
+  "arguments": {
+    "providerId": "gemini",
+    "prompt": "Say hi in one short sentence."
   }
 }
 ```
 
-### V1 Limitations
+`send_prompt` targets by `providerId`, not by the visually focused pane. Multiple panes may be open; the requested provider id selects the BrowserView used for execution.
 
-Same as ChatGPT - stub only.
+## Login and Session Handling
 
-### Smoke Test Checklist
+Tessera uses one isolated BrowserView session partition per provider:
 
-- [ ] Adapter package builds
-- [ ] Schema validation passes
-- [ ] Health check returns degraded status
-- [ ] Execute returns stub response
+```text
+persist:provider-chatgpt
+persist:provider-claude
+persist:provider-gemini
+persist:provider-perplexity
+```
 
-### Expected V2 Requirements
+Users should log in manually inside the provider pane when required. Session reset is explicit through `reset_provider_session` or the desktop UI.
 
-- Playwright persistent context
-- DOM selector patterns
-- Response capture logic
-- Search-specific UI handling
+Do not add:
 
----
+- automatic credential entry
+- captcha solving
+- token or cookie extraction
+- imported browser profiles
+- raw cookie/session logging
 
-## Adding New Providers
+## Breakage Protocol
 
-To add a new provider:
+When a provider UI changes:
 
-1. Create package: `packages/provider-<name>/`
-2. Implement `IProviderAdapter` interface
-3. Add to router mapping
-4. Create smoke test
-5. Document in this file
+1. Detect the failing selector, capture method, or blocked page state.
+2. Return a normalized failure code.
+3. Avoid fake success from page chrome or prompt echoes.
+4. Add or update focused regression tests where possible.
+5. Update this document with the new observed behavior.
 
-New provider additions must also update `packages/core/src/providers/registry.ts` and the canonical runtime state contract.
+Preferred failure codes:
 
-## Provider Breakage Protocol
-
-When a provider's web interface changes:
-
-1. **Detect**: Log which selector/capture failed
-2. **Disable**: Mark provider as `degraded` in health check
-3. **Fallback**: Log what fallback was used
-4. **Test**: Add regression test if possible
-5. **Document**: Update this file with breakage notes
-
-**Do NOT**:
-- Fake success
-- Silently skip
-- Hide the failure
-- Return a provider-shaped success object when the adapter is only scaffolded
-
-## Health Check Response Format
-
-Health is normalized through `packages/core` and `packages/runtime`.
-Provider adapters may return stubbed health, but they must not report fake healthy status when execution is scaffold-only.
-
-## Model Alias Mapping
-
-| Alias | Provider | Fallback |
-|-------|----------|----------|
-| `chatgpt` | ChatGPT | error (no fallback in V1) |
-| `claude` | Claude | error |
-| `gemini` | Gemini | error |
-| `perplexity` | Perplexity | error |
-| `auto` | First available runtime provider | explicit runtime selection |
-
-`auto` is resolved by the shared runtime orchestration layer. It is not a hidden multi-provider fallback chain.
+| Condition | Code |
+|-----------|------|
+| Provider login/signup page shown | `PROVIDER_NOT_AUTHENTICATED` |
+| Composer missing or disabled | `PROVIDER_NOT_READY` |
+| Prompt accepted but no stable response captured | `PROVIDER_TIMEOUT` |
+| Known selector/capture contract broken | `PROVIDER_UI_CHANGED` |
+| Runtime bridge failure | `RUNTIME_ERROR` |

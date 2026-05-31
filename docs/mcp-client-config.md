@@ -19,8 +19,9 @@ External MCP Client (Codex, OpenCode, etc.)
 ## V1 Limitations
 
 - **Desktop app must be running** - MCP server requires the desktop app to be running
-- **No headless execution** - `send_prompt` requires UI-attached browser session
-- **No background automation** - Providers must be opened interactively through the desktop app
+- **No headless execution** - `send_prompt` requires a UI-attached provider BrowserView
+- **Manual login may be required** - Claude, ChatGPT, and Perplexity can show provider login/signup gates
+- **Provider UI changes can break capture** - provider scripts fail honestly instead of returning fake success
 
 ## Starting the MCP Server
 
@@ -169,7 +170,43 @@ Response:
 }
 ```
 
-**Note**: `send_prompt` in v1 returns a limitation message because actual prompt sending requires UI interaction. The provider must be open and authenticated through the desktop app.
+**Note**: `send_prompt` now uses real visible-browser automation for implemented providers. The provider must be open, loaded, and not blocked by a login/signup gate. Some providers can work without login in one session and require login later.
+
+Current verified behavior on June 1, 2026:
+
+| Provider | Observed MCP Result |
+|----------|---------------------|
+| Gemini | `ok: true`, response text returned |
+| Perplexity | `PROVIDER_NOT_AUTHENTICATED` due signup/login layer |
+| Claude | `PROVIDER_NOT_AUTHENTICATED` due login page |
+| ChatGPT | implemented path, manual login may be required |
+
+Successful Gemini response shape:
+
+```json
+{
+  "ok": true,
+  "providerId": "gemini",
+  "model": "gemini",
+  "text": "Hey there! It's great to connect with you.",
+  "loadState": "ready",
+  "error": null
+}
+```
+
+Auth-gated provider response shape:
+
+```json
+{
+  "ok": false,
+  "providerId": "perplexity",
+  "error": {
+    "code": "PROVIDER_NOT_AUTHENTICATED",
+    "message": "Perplexity is showing a signup or login layer before prompt execution.",
+    "retryable": false
+  }
+}
+```
 
 ### 4. Get Runtime State
 
@@ -201,8 +238,9 @@ Response:
 | `DESKTOP_RUNTIME_UNAVAILABLE` | Desktop app not running | No |
 | `PROVIDER_NOT_FOUND` | Unknown provider ID | No |
 | `PROVIDER_NOT_AUTHENTICATED` | Provider session not logged in | No |
-| `PROVIDER_NOT_READY` | Provider not open or still loading | Yes |
-| `PROVIDER_LOAD_FAILED` | Provider failed to load | No |
+| `PROVIDER_NOT_READY` | Provider not open, still loading, or composer not usable | Yes |
+| `PROVIDER_TIMEOUT` | Prompt path did not capture a stable response | Yes |
+| `PROVIDER_UI_CHANGED` | Provider page/capture contract changed | No |
 | `VALIDATION_ERROR` | Invalid input parameters | No |
 | `RUNTIME_ERROR` | Internal runtime error | Yes |
 
@@ -230,4 +268,14 @@ Error: Provider not open. Call open_provider first.
 Error: Provider session not authenticated
 ```
 
-**Solution**: Open the provider in the desktop app and log in through the browser interface.
+**Solution**: Open the provider in the desktop app and log in through the provider's normal browser interface. Tessera does not automate login, captcha, cookies, or credentials.
+
+### Desktop Runtime Exits Immediately
+
+If launching the desktop app hidden causes the runtime to start and then exit, start the desktop app visibly:
+
+```bash
+bun run dev:desktop
+```
+
+The provider BrowserView window lifecycle must remain alive while MCP prompt execution runs.

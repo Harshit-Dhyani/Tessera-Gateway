@@ -44,14 +44,14 @@ contextBridge.exposeInMainWorld('gateway', {
 - Response normalization strips sensitive metadata
 - Provider selection logged (not hidden)
 
-### 3. MCP Server ↔ Router
+### 3. MCP Server ↔ Runtime
 
 **Boundary**: Tool schema validation
 
 **Rules**:
-- All tool inputs validated via Zod
+- All tool inputs validated by registered MCP schemas and runtime provider-id checks
 - No arbitrary code execution
-- Tools call same router as HTTP API
+- Tools call the shared runtime, not provider-specific code directly
 
 ### 4. Main ↔ Storage
 
@@ -172,6 +172,13 @@ export function redactSecrets(obj: unknown): unknown {
 - Directory created in app data folder
 - No sharing between providers
 - Clear session = wipe directory
+
+### Provider Login
+
+- Login is always manual and visible in the provider BrowserView.
+- Tessera must not fill credentials, solve captchas, import cookies, or read the user's normal browser profile.
+- Provider login/signup gates are reported as `PROVIDER_NOT_AUTHENTICATED`.
+- Anonymous access is treated as opportunistic; a provider can require login at any time.
 
 ### Network Exposure
 
