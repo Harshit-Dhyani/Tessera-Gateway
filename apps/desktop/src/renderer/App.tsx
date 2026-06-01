@@ -85,11 +85,23 @@ export default function App() {
   }, [activeScreen]);
 
   useEffect(() => {
-    if (!window.gateway?.onActivateScreen) return;
+    if (!window.gateway) return;
 
-    return window.gateway.onActivateScreen((screenId) => {
+    let unsubscribe: (() => void) | undefined;
+
+    window.gateway.getActiveScreen().then((screenId) => {
       setActiveScreen(screenId);
     });
+
+    if (window.gateway.onActivateScreen) {
+      unsubscribe = window.gateway.onActivateScreen((screenId) => {
+        setActiveScreen(screenId);
+      });
+    }
+
+    return () => {
+      unsubscribe?.();
+    };
   }, [setActiveScreen]);
 
   const ScreenComponent = screens[activeScreen];

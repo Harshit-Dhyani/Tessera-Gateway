@@ -40,6 +40,7 @@ declare global {
       }>;
       getProviderWorkspaceBounds: () => Promise<{ x: number; y: number; width: number; height: number } | null>;
       setActiveScreen: (screenId: ScreenId) => Promise<{ success: boolean }>;
+      getActiveScreen: () => Promise<ScreenId>;
       onActivateScreen: (callback: (screenId: ScreenId) => void) => () => void;
     };
   }

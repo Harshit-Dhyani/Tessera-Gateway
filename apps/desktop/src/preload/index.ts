@@ -46,6 +46,7 @@ contextBridge.exposeInMainWorld('gateway', {
 
   // Provider Screen Ownership
   setActiveScreen: (screenId: string) => ipcRenderer.invoke('providerShell:setActiveScreen', screenId),
+  getActiveScreen: () => ipcRenderer.invoke('providerShell:getActiveScreen'),
   onActivateScreen: (callback: (screenId: string) => void) => {
     const listener = (_event: Electron.IpcRendererEvent, screenId: string) => callback(screenId);
     ipcRenderer.on('providerShell:activateScreen', listener);

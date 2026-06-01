@@ -1,10 +1,19 @@
 import { spawn } from 'node:child_process';
 import { createInterface } from 'node:readline';
 
-const proc = spawn('cmd', ['/c', 'bun run src/index.ts'], {
-  cwd: 'apps/mcp',
-  stdio: ['pipe', 'pipe', 'pipe'],
-});
+const ROOT = process.cwd();
+const BUN_EXE = process.execPath;
+const DEV_STACK_TIMEOUT_MS = 180000;
+let devStackStarted = false;
+
+function startMcpProcess() {
+  return spawn(BUN_EXE, ['run', 'src/index.ts'], {
+    cwd: 'apps/mcp',
+    stdio: ['pipe', 'pipe', 'pipe'],
+  });
+}
+
+const proc = startMcpProcess();
 
 const rl = createInterface({ input: proc.stdout });
 let id = 0;
@@ -34,6 +43,52 @@ function send(method, params = {}) {
   });
 }
 
+async function checkHealth(url: string): Promise<boolean> {
+  try {
+    const res = await fetch(url);
+    return res.ok;
+  } catch {
+    return false;
+  }
+}
+
+async function waitForDesktopRuntime(timeoutMs = DEV_STACK_TIMEOUT_MS): Promise<boolean> {
+  const startedAt = Date.now();
+  while (Date.now() - startedAt < timeoutMs) {
+    if (await checkHealth('http://127.0.0.1:7870/health')) {
+      return true;
+    }
+    await new Promise((resolve) => setTimeout(resolve, 1000));
+  }
+  return false;
+}
+
+async function ensureDevStack(): Promise<void> {
+  if (await checkHealth('http://127.0.0.1:7870/health')) {
+    return;
+  }
+
+  if (devStackStarted) {
+    return;
+  }
+
+  devStackStarted = true;
+  const dev = spawn(BUN_EXE, ['run', 'dev:desktop'], {
+    cwd: ROOT,
+    detached: true,
+    stdio: ['ignore', 'ignore', 'ignore'],
+    windowsHide: true,
+  });
+  dev.unref();
+
+  const ready = await waitForDesktopRuntime();
+  if (!ready) {
+    throw new Error(
+      'Desktop runtime did not start automatically. Run `bun run dev:desktop` once to inspect the local stack.',
+    );
+  }
+}
+
 async function waitForProviderReady(providerId: string, timeoutMs = 60000) {
   const startedAt = Date.now();
   let lastState = null;
@@ -61,6 +116,8 @@ async function test() {
   console.log('Testing send_prompt via MCP...\n');
 
   try {
+    await ensureDevStack();
+
     const providerId = process.argv[2] || 'perplexity';
     const prompt = process.argv.slice(3).join(' ').trim() || 'Say hi in one short sentence.';
 

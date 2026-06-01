@@ -784,6 +784,7 @@ Every stubbed provider adapter and scaffolded runtime path must return a normali
 - Provider URL approval must compare parsed URL origins, never raw string prefixes
 - MCP stdio servers must keep protocol output on stdout and send logs to stderr only
 - Desktop runtime server startup must handle loopback port conflicts explicitly instead of crashing the app process
+- If an MCP or smoke helper needs to wake the desktop runtime, it must launch `bun run dev:desktop` directly as a detached child process and poll `http://127.0.0.1:7870/health`; do not route the bootstrap through nested PowerShell wrappers or treat a hidden launcher as verified until the health check passes
 - ChatGPT DOM selectors, prompt insertion logic, and response capture scripts must live in `packages/provider-chatgpt`, not desktop main or transport routes
 - Desktop development must load `ELECTRON_RENDERER_URL` when present; never hardcode one Vite port as the only renderer URL
 - Provider load state must listen for both `did-finish-load` and `did-stop-loading`; provider pages can stop without the finish event the first implementation expected

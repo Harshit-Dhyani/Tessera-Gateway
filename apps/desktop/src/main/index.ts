@@ -18,6 +18,7 @@ const RUNTIME_PORT = 7870;
 const MAX_RUNTIME_LOGS = 1000;
 
 let mainWindow: BrowserWindow | null = null;
+let activeScreenId = 'dashboard';
 const layoutManager = getProviderLayoutManager();
 const viewManager = initializeProviderViewManager(layoutManager);
 const runtimeLogs: Array<{
@@ -71,6 +72,7 @@ function readLayout(body: unknown): LayoutMode | null {
 }
 
 function requestProvidersScreen(): void {
+  activeScreenId = 'providers';
   viewManager.setProvidersScreenActive(true);
 
   if (mainWindow && !mainWindow.isDestroyed()) {
@@ -602,7 +604,12 @@ ipcMain.handle('providerWorkspace:getBounds', async () => {
 
 // Provider Screen Ownership IPC Handler
 ipcMain.handle('providerShell:setActiveScreen', async (_event, screenId: string) => {
+  activeScreenId = screenId;
   const isProviders = screenId === 'providers';
   viewManager.setProvidersScreenActive(isProviders);
   return { success: true };
+});
+
+ipcMain.handle('providerShell:getActiveScreen', async () => {
+  return activeScreenId;
 });
