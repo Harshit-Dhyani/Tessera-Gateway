@@ -46,6 +46,11 @@ contextBridge.exposeInMainWorld('gateway', {
 
   // Provider Screen Ownership
   setActiveScreen: (screenId: string) => ipcRenderer.invoke('providerShell:setActiveScreen', screenId),
+  onActivateScreen: (callback: (screenId: string) => void) => {
+    const listener = (_event: Electron.IpcRendererEvent, screenId: string) => callback(screenId);
+    ipcRenderer.on('providerShell:activateScreen', listener);
+    return () => ipcRenderer.removeListener('providerShell:activateScreen', listener);
+  },
 });
 
 console.log('[Preload] Gateway API exposed with Browser Shell support');

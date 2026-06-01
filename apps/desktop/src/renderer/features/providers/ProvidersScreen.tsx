@@ -26,6 +26,8 @@ export default function ProvidersScreen() {
 
   useEffect(() => {
     loadBrowserStates();
+    const interval = window.setInterval(loadBrowserStates, 1000);
+    return () => window.clearInterval(interval);
   }, [loadBrowserStates]);
 
   const handleSelectProvider = useCallback(

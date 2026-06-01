@@ -383,6 +383,8 @@ No UI surface may own:
 If a UI control is visible, it must map to real runtime behavior.
 No placebo toggles.
 
+Runtime-driven provider opens, including MCP and local HTTP API calls, must switch the renderer to the Providers screen and mount provider BrowserViews into a valid workspace. A provider may not be marked open/visible while it is missing layout ownership or workspace bounds. If bounds are not available yet, the desktop runtime must create safe default bounds or return an explicit not-ready state.
+
 ### Planned vs Real UI
 
 Any planned or non-functional control must be visibly labeled:

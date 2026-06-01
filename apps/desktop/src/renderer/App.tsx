@@ -84,6 +84,14 @@ export default function App() {
     }
   }, [activeScreen]);
 
+  useEffect(() => {
+    if (!window.gateway?.onActivateScreen) return;
+
+    return window.gateway.onActivateScreen((screenId) => {
+      setActiveScreen(screenId);
+    });
+  }, [setActiveScreen]);
+
   const ScreenComponent = screens[activeScreen];
   const gatewayRunning = gatewayHealth?.running ?? false;
   const mcpRunning = mcpHealth?.running ?? false;

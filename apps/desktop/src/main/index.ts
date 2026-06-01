@@ -70,6 +70,14 @@ function readLayout(body: unknown): LayoutMode | null {
   return layout === 'single' || layout === 'split' || layout === 'grid' ? layout : null;
 }
 
+function requestProvidersScreen(): void {
+  viewManager.setProvidersScreenActive(true);
+
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.webContents.send('providerShell:activateScreen', 'providers');
+  }
+}
+
 // ============ Local HTTP Runtime Server ============
 
 const runtimeServer = http.createServer(async (req, res) => {
@@ -127,6 +135,7 @@ const runtimeServer = http.createServer(async (req, res) => {
         );
         return;
       }
+      requestProvidersScreen();
       const state = await viewManager.openProviderView(providerId);
       appendRuntimeLog({
         provider: providerId,
@@ -169,6 +178,7 @@ const runtimeServer = http.createServer(async (req, res) => {
         );
         return;
       }
+      requestProvidersScreen();
       await viewManager.focusProviderView(providerId);
       const state = viewManager.getAllStates().find((s) => s.providerId === providerId);
       appendRuntimeLog({
@@ -259,6 +269,7 @@ const runtimeServer = http.createServer(async (req, res) => {
         );
         return;
       }
+      requestProvidersScreen();
       const openIds = providerIds;
       await Promise.all(openIds.map((id) => viewManager.openProviderView(id)));
 

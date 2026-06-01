@@ -8,7 +8,7 @@ import { ZodError } from 'zod';
 const logger = createLogger({ name: 'gateway' });
 
 const fastify = Fastify({
-  logger,
+  loggerInstance: logger,
 });
 
 function isAllowedCorsOrigin(origin: string): boolean {

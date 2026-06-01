@@ -34,6 +34,29 @@ function send(method, params = {}) {
   });
 }
 
+async function waitForProviderReady(providerId: string, timeoutMs = 60000) {
+  const startedAt = Date.now();
+  let lastState = null;
+
+  while (Date.now() - startedAt < timeoutMs) {
+    const stateRes = await send('tools/call', { name: 'get_provider_state', arguments: { providerId } });
+    const stateJson = JSON.parse(stateRes.result.content[0].text);
+    lastState = stateJson.state ?? null;
+
+    if (lastState?.isMounted && lastState?.loadState === 'ready') {
+      return lastState;
+    }
+
+    if (lastState?.loadState === 'failed') {
+      return lastState;
+    }
+
+    await new Promise((resolve) => setTimeout(resolve, 1500));
+  }
+
+  return lastState;
+}
+
 async function test() {
   console.log('Testing send_prompt via MCP...\n');
 
@@ -50,20 +73,19 @@ async function test() {
     console.log('   loadState:', openJson.state?.loadState);
     console.log('\n---\n');
 
-    // Wait for load
-    await new Promise((r) => setTimeout(r, 5000));
-
-    // 2. Check state
-    console.log(`2. Checking ${providerId} state...`);
-    const stateRes = await send('tools/call', { name: 'get_provider_state', arguments: { providerId } });
-    const stateJson = JSON.parse(stateRes.result.content[0].text);
-    console.log('   isMounted:', stateJson.state?.isMounted);
-    console.log('   loadState:', stateJson.state?.loadState);
-    console.log('   currentUrl:', stateJson.state?.currentUrl);
+    // 2. Wait until the provider browser pane is mounted and ready.
+    console.log(`2. Waiting for ${providerId} state...`);
+    const state = await waitForProviderReady(providerId);
+    console.log('   isMounted:', state?.isMounted);
+    console.log('   loadState:', state?.loadState);
+    console.log('   currentUrl:', state?.currentUrl);
+    if (state?.errorCode) {
+      console.log('   errorCode:', state.errorCode);
+    }
     console.log('\n---\n');
 
     // 3. Send prompt if ready
-    if (stateJson.state?.isMounted && stateJson.state?.loadState === 'ready') {
+    if (state?.isMounted && state?.loadState === 'ready') {
       console.log(`3. Sending prompt to ${providerId}...`);
       console.log('   prompt:', prompt);
       const promptRes = await send('tools/call', {

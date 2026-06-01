@@ -166,15 +166,9 @@ export class ProviderViewManager {
     if (!this.isProvidersScreenActive) {
       if (DEBUG) console.log(`[ProviderViewManager] Auto-activating providers screen for: ${providerId}`);
       this.isProvidersScreenActive = true;
-
-      // Set default workspace bounds if not set
-      if (!isWorkspaceBoundsSet() && this.mainWindow) {
-        const winBounds = this.mainWindow.getBounds();
-        const defaultBounds = { x: 0, y: 0, width: winBounds.width, height: winBounds.height };
-        if (DEBUG) console.log(`[ProviderViewManager] Setting default workspace bounds:`, defaultBounds);
-        setWorkspaceBounds(defaultBounds);
-      }
     }
+
+    this.ensureDefaultWorkspaceBounds();
 
     if (DEBUG)
       console.log(
@@ -205,6 +199,17 @@ export class ProviderViewManager {
     }
 
     return result;
+  }
+
+  private ensureDefaultWorkspaceBounds(): void {
+    if (isWorkspaceBoundsSet() || !this.mainWindow || this.mainWindow.isDestroyed()) {
+      return;
+    }
+
+    const winBounds = this.mainWindow.getBounds();
+    const defaultBounds = { x: 0, y: 0, width: winBounds.width, height: winBounds.height };
+    if (DEBUG) console.log(`[ProviderViewManager] Setting default workspace bounds:`, defaultBounds);
+    setWorkspaceBounds(defaultBounds);
   }
 
   private async doMountProvider(providerId: string, url: string): Promise<ProviderBrowserState> {
